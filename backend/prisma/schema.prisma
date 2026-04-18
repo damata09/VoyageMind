@@ -28,5 +28,6 @@ model Passport {
   tag         String?
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  unlockDate  DateTime?
   createdAt   DateTime @default(now())
 }

@@ -101,6 +101,7 @@ export async function getAiSuggestions(input: {
   place: string;
   budget: string;
   days: number;
+  blindMode?: boolean;
 }) {
   return apiFetch<{
     title: string;

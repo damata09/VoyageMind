@@ -44,6 +44,7 @@ export function Explore() {
     const [aiDays, setAiDays] = useState(3);
     const [aiResult, setAiResult] = useState<{ title: string; overview: string; itinerary: string[]; tags: string[] } | null>(null);
     const [aiLoading, setAiLoading] = useState(false);
+    const [blindMode, setBlindMode] = useState(false);
 
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -141,7 +142,8 @@ export function Explore() {
              const result = await getAiSuggestions({
                  place: query,
                  budget: aiBudget,
-                 days: aiDays
+                 days: aiDays,
+                 blindMode
              });
              setAiResult(result);
         } catch (e) {
@@ -340,12 +342,22 @@ export function Explore() {
                                         value={aiDays} 
                                         onChange={e => setAiDays(Number(e.target.value))}
                                         className={styles.aiInput}
+                                        style={{ marginBottom: '1rem' }}
                                     />
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(212, 175, 55, 0.1)', padding: '1rem', borderRadius: '8px', border: '1px dashed rgba(212, 175, 55, 0.4)', cursor: 'pointer' }} onClick={() => setBlindMode(!blindMode)}>
+                                        <input type="checkbox" checked={blindMode} onChange={(e) => setBlindMode(e.target.checked)} style={{ transform: 'scale(1.2)' }} />
+                                        <div>
+                                            <strong style={{ color: 'var(--color-gold)', display: 'block' }}>Roteiro Misterioso</strong>
+                                            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Esconda o destino de mim, quero ser surpreendido!</span>
+                                        </div>
+                                    </div>
 
                                     <button 
                                         className={styles.actionButton} 
                                         onClick={handleAiSuggest}
                                         disabled={aiLoading}
+                                        style={{ marginTop: '0.5rem' }}
                                     >
                                         {aiLoading ? 'Gerando...' : 'Gerar Roteiro Inteligente'}
                                     </button>

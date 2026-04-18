@@ -3,10 +3,26 @@ import { Router } from "express";
 const router = Router();
 
 router.post("/suggest", (req, res) => {
-  const { place, budget, days } = req.body;
+  const { place, budget, days, blindMode } = req.body;
 
   if (!place || !budget || !days) {
     return res.status(400).json({ message: "Preencha lugar, orçamento e dias." });
+  }
+
+  if (blindMode) {
+    setTimeout(() => {
+      res.json({
+        title: `Roteiro Secreto de ${days} Dias`,
+        overview: `A IA planejou uma aventura misteriosa para você com orçamento ${budget}. O destino é mantido em segredo! Prepare-se para ser surpreendido.`,
+        itinerary: [
+          `Dia 1: Chegada ao nosso destino secreto. Faça o check-in na acomodação e explore os restaurantes misteriosos próximos.`,
+          `Dia 2: Dia focado em vivenciar a atração principal desta região surpresa. Dica: Leve câmera!`,
+          `Dia 3: Despedida épica do local misterioso saboreando a cultura local.`
+        ],
+        tags: ["Cego", "Mistério", "Surpresa"]
+      });
+    }, 1500);
+    return;
   }
 
   // Simulating an AI generated response

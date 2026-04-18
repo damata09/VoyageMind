@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Search, Compass, Sparkles } from 'lucide-react';
 import styles from './Landing.module.css';
+import { HeroGlobe } from '../components/HeroGlobe';
 
 export function Landing() {
     return (
@@ -8,11 +9,8 @@ export function Landing() {
             {/* Hero Section */}
             <section className={styles.hero}>
                 <div className={styles.heroBackground}>
-                    <img
-                        src="https://images.unsplash.com/photo-1506929562872-bb421503ef21?auto=format&fit=crop&w=2000&q=80"
-                        alt="Scenic coastline"
-                    />
-                    <div className={styles.overlay} />
+                    <HeroGlobe />
+                    <div className={styles.overlay} style={{ background: 'linear-gradient(to bottom, transparent 60%, var(--color-bg-dark) 100%)' }} />
                 </div>
 
                 <div className={styles.heroContent}>
