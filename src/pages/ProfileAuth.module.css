@@ -120,7 +120,7 @@
 }
 
 .forgotPassword {
-    align-self: flex-end;
+    align-self: center;
     font-size: 0.875rem;
     color: var(--color-sky-blue);
     font-weight: 500;
@@ -249,4 +249,36 @@
 .promoContent p {
     font-size: 0.9rem;
     color: var(--color-text-secondary);
+}
+
+.dashboardActions {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-xl);
+}
+
+.changePhotoBtn {
+    background: rgba(64, 224, 208, 0.1) !important;
+    border: 1px solid var(--color-turquoise) !important;
+    color: var(--color-turquoise) !important;
+    padding: 8px 16px !important;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all var(--transition-fast) !important;
+}
+
+.changePhotoBtn:hover {
+    background: var(--color-turquoise) !important;
+    color: var(--color-bg-dark) !important;
+}
+
+@media (max-width: 768px) {
+    .dashboardActions {
+        flex-direction: column;
+    }
 }

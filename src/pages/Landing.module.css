@@ -52,7 +52,7 @@
     align-items: center;
     text-align: center;
     margin-top: 80px;
-    /* offset for navbar */
+    margin-bottom: var(--spacing-2xl);
 }
 
 .badge {
@@ -206,4 +206,26 @@
 .location {
     color: var(--color-text-secondary);
     font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+    .hero {
+        min-height: 100vh;
+    }
+    .searchBar {
+        flex-direction: column;
+        padding: var(--spacing-md);
+        border-radius: 1rem;
+    }
+    .searchInput {
+        width: 100%;
+        text-align: center;
+    }
+    .searchButton {
+        width: 100%;
+        border-radius: 8px;
+    }
+    .sectionHeader h2 {
+        font-size: 2rem;
+    }
 }

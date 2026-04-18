@@ -73,14 +73,14 @@ export function Landing() {
                             id: 2,
                             title: "Aurora da Meia-Noite",
                             location: "Tromsø, Noruega",
-                            image: "https://images.unsplash.com/photo-1531366936337-7785a084620b?auto=format&fit=crop&w=800&q=80",
+                            image: "/images/aurora.png",
                             tag: "Sazonal"
                         },
                         {
                             id: 3,
                             title: "Refúgio à beira do Penhasco",
                             location: "Amalfi, Itália",
-                            image: "https://images.unsplash.com/photo-1533604146059-fa9b8973b064?auto=format&fit=crop&w=800&q=80",
+                            image: "/images/amalfi.png",
                             tag: "Exclusivo"
                         }
                     ].map((item, index) => (

@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, LayoutDashboard, Compass, LogOut, Camera } from 'lucide-react';
 import styles from './ProfileAuth.module.css';
-import { loginUser, registerUser } from '../lib/api';
+import { loginUser, registerUser, getApiBaseUrl } from '../lib/api';
+import { useAuth } from '../lib/AuthContext';
+import { uploadAvatar } from '../lib/upload';
 
 export function ProfileAuth() {
     const [isLogin, setIsLogin] = useState(true);
@@ -11,10 +13,29 @@ export function ProfileAuth() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    
     const navigate = useNavigate();
-
+    const { user, login, logout, updateAvatar } = useAuth();
+    
     const toggleAuthMode = () => setIsLogin(!isLogin);
+
+    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        const file = e.target.files[0];
+        try {
+            setUploadingAvatar(true);
+            setError(null);
+            const { avatarUrl } = await uploadAvatar(file);
+            updateAvatar(avatarUrl);
+        } catch (err) {
+            setError("Erro ao salvar foto no backend.");
+        } finally {
+            setUploadingAvatar(false);
+        }
+    };
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -34,8 +55,8 @@ export function ProfileAuth() {
 
             const result = await loginUser({ email, password });
 
-            localStorage.setItem('voyagemind_token', result.token);
-            localStorage.setItem('voyagemind_user_name', result.user.name);
+            // Usa o Context API
+            login(result.token, { id: result.user.id, name: result.user.name, email: result.user.email });
 
             navigate('/passport');
         } catch (err) {
@@ -47,6 +68,92 @@ export function ProfileAuth() {
         } finally {
             setLoading(false);
         }
+    }
+
+    if (user) {
+        return (
+            <div className={styles.container}>
+                <div className={styles.backgroundElement} />
+                <div className={styles.authWrapper} style={{ justifyContent: 'center' }}>
+                    <motion.div
+                        className={`glass-panel ${styles.authCard}`}
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        style={{ maxWidth: '600px', width: '100%' }}
+                    >
+                        <div className={styles.cardHeader}>
+                            <h2 className="text-gradient" style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                                <LayoutDashboard size={28} /> Dashboard do Explorador
+                            </h2>
+                            <p className={styles.subtitle}>Bem-vindo de volta, {user.name}!</p>
+                        </div>
+                        <div style={{ padding: 'var(--spacing-lg) 0', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', paddingBottom: 'var(--spacing-md)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                <div style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                                    {user.avatarUrl ? (
+                                        <img src={`${getApiBaseUrl()}${user.avatarUrl}`} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                        <User size={40} color="#aaa" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+                                    )}
+                                    {uploadingAvatar && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{fontSize:'12px'}}>...</span></div>}
+                                </div>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '1.2rem', paddingBottom: '8px' }}>Foto de Perfil</h3>
+                                    <button 
+                                        onClick={() => fileInputRef.current?.click()} 
+                                        className={styles.changePhotoBtn}
+                                        disabled={uploadingAvatar}
+                                    >
+                                        <Camera size={16} /> Alterar Foto
+                                    </button>
+                                    <input type="file" ref={fileInputRef} onChange={handleAvatarChange} style={{ display: 'none' }} accept="image/*" />
+                                </div>
+                            </div>
+
+                            {error && <p className={styles.errorMessage} style={{ margin: 0 }}>{error}</p>}
+
+                            <div className={styles.inputGroup}>
+                                <label>Seu Nome</label>
+                                <div className={styles.inputWrapper}>
+                                    <User size={18} className={styles.inputIcon} />
+                                    <input type="text" readOnly value={user.name} style={{ opacity: 0.7 }} />
+                                </div>
+                            </div>
+                            <div className={styles.inputGroup}>
+                                <label>Email da Conta</label>
+                                <div className={styles.inputWrapper}>
+                                    <Mail size={18} className={styles.inputIcon} />
+                                    <input type="text" readOnly value={user.email} style={{ opacity: 0.7 }} />
+                                </div>
+                            </div>
+                        </div>
+                        <div className={styles.dashboardActions}>
+                            <button
+                                type="button"
+                                className={styles.submitButton}
+                                onClick={() => navigate('/passport')}
+                                style={{ flex: 1, display: 'flex', justifyContent: 'center' }}
+                            >
+                                <Compass size={18} /> <span>Meu Passaporte</span>
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.submitButton}
+                                onClick={() => { logout(); navigate('/'); }}
+                                style={{
+                                    flex: 1,
+                                    background: 'rgba(255, 99, 71, 0.1)',
+                                    color: 'var(--color-coral)',
+                                    border: '1px solid rgba(255,99,71,0.2)'
+                                }}
+                            >
+                                <LogOut size={18} /> <span>Sair da Conta</span>
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            </div>
+        );
     }
 
     return (

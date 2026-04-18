@@ -6,6 +6,7 @@ interface AuthResponse {
     id: string;
     name: string;
     email: string;
+    avatarUrl?: string;
   };
 }
 
@@ -85,3 +86,29 @@ export async function getPassports(): Promise<PassportItem[]> {
   return apiFetch<PassportItem[]>("/passports", {}, true);
 }
 
+export async function createPassport(input: {
+  title: string;
+  description?: string;
+  tag?: string;
+}) {
+  return apiFetch<PassportItem>("/passports", {
+    method: "POST",
+    body: JSON.stringify(input)
+  }, true);
+}
+
+export async function getAiSuggestions(input: {
+  place: string;
+  budget: string;
+  days: number;
+}) {
+  return apiFetch<{
+    title: string;
+    overview: string;
+    itinerary: string[];
+    tags: string[];
+  }>("/ai/suggest", {
+    method: "POST",
+    body: JSON.stringify(input)
+  }, false);
+}

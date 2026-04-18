@@ -114,6 +114,15 @@
     color: var(--color-text-primary);
 }
 
+@media (max-width: 768px) {
+    .profileLabel {
+        display: none;
+    }
+    .profileLink {
+        padding: 4px;
+    }
+}
+
 .profileAvatar {
     width: 32px;
     height: 32px;
@@ -176,3 +185,58 @@
 .mobileNavLink:hover {
     background: var(--color-surface);
 }
+
+/* Profile Dropdown */
+.profileContainer {
+    position: relative;
+}
+
+.dropdownMenu {
+    position: absolute;
+    top: calc(100% + var(--spacing-sm));
+    right: 0;
+    width: 200px;
+    background: rgba(2, 6, 23, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    z-index: 1010;
+}
+
+.dropdownItem {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: var(--border-radius-sm);
+    transition: all var(--transition-fast);
+    text-align: left;
+    width: 100%;
+}
+
+.dropdownItem:hover {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+}
+
+.dropdownItem.logoutBtn {
+    color: var(--color-coral);
+    margin-top: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 0 0 var(--border-radius-sm) var(--border-radius-sm);
+}
+
+.dropdownItem.logoutBtn:hover {
+    background: rgba(255, 99, 71, 0.1);
+}

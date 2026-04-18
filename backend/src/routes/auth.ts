@@ -1,5 +1,6 @@
 import type { Router, Request, Response } from "express";
 import express from "express";
+import multer from "multer";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import prisma from "../prisma";
@@ -10,6 +11,11 @@ const router: Router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "dev-secret";
 const JWT_EXPIRES_IN = "7d";
+
+const upload = multer({
+  dest: "uploads/",
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
 
 router.post("/register", async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
@@ -77,6 +83,7 @@ router.post("/login", async (req: Request, res: Response) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        avatarUrl: user.avatarUrl,
       },
     });
   } catch (error) {
@@ -103,10 +110,34 @@ router.get("/me", authenticate, async (req: AuthRequest, res: Response) => {
       id: user.id,
       name: user.name,
       email: user.email,
+      avatarUrl: user.avatarUrl,
       passports: user.passports,
     });
   } catch (error) {
     return res.status(500).json({ message: "Erro ao carregar usuário" });
+  }
+});
+
+router.post("/avatar", authenticate, upload.single("avatar"), async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Usuário não autenticado" });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({ message: "Nenhuma imagem foi enviada." });
+  }
+
+  try {
+    const avatarUrl = `/uploads/${req.file.filename}`;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { avatarUrl },
+    });
+
+    return res.json({ avatarUrl: updatedUser.avatarUrl });
+  } catch (error) {
+    return res.status(500).json({ message: "Erro ao atualizar foto de perfil" });
   }
 });
 

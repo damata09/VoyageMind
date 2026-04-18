@@ -1,13 +1,19 @@
-import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Map, Home, Search, Menu, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { BookOpen, Map, Home, Search, Menu, X, LogOut, User as UserIcon } from 'lucide-react';
 import styles from './Navbar.module.css';
+import { useAuth } from '../lib/AuthContext';
+import { getApiBaseUrl } from '../lib/api';
 
 export function Navbar() {
     const [isScrolled, setIsScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [userName, setUserName] = useState<string | null>(null);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    
     const location = useLocation();
+    const navigate = useNavigate();
+    const { user, logout } = useAuth();
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -17,12 +23,22 @@ export function Navbar() {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
+    // Close dropdown on click outside
     useEffect(() => {
-        const storedName = localStorage.getItem('voyagemind_user_name');
-        if (storedName) {
-            setUserName(storedName);
+        function handleClickOutside(event: MouseEvent) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setDropdownOpen(false);
+            }
         }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+    const handleLogout = () => {
+        logout();
+        setDropdownOpen(false);
+        navigate('/');
+    };
 
     const navLinks = [
         { name: 'Início', path: '/', icon: <Home size={20} /> },
@@ -63,14 +79,49 @@ export function Navbar() {
                         <Search size={20} />
                     </button>
 
-                    <Link to="/profile" className={styles.profileLink}>
-                        <div className={styles.profileAvatar}>
-                            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="Perfil" />
-                        </div>
-                        <span className={styles.profileLabel}>
-                            {userName ? `Olá, ${userName}` : 'Entrar/Cadastrar'}
-                        </span>
-                    </Link>
+                    <div className={styles.profileContainer} ref={dropdownRef}>
+                        {user ? (
+                            <button 
+                                className={styles.profileLink} 
+                                onClick={() => setDropdownOpen(!dropdownOpen)}
+                            >
+                                <div className={styles.profileAvatar}>
+                                    {user.avatarUrl ? (
+                                        <img src={`${getApiBaseUrl()}${user.avatarUrl}`} alt="Perfil" />
+                                    ) : (
+                                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.1)' }}>
+                                            <UserIcon size={16} color="#aaa" />
+                                        </div>
+                                    )}
+                                </div>
+                                <span className={styles.profileLabel}>Olá, {user.name.split(' ')[0]}</span>
+                            </button>
+                        ) : (
+                            <Link to="/profile" className={styles.profileLink}>
+                                <div className={styles.profileAvatar}>
+                                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.1)' }}>
+                                        <UserIcon size={16} color="#aaa" />
+                                    </div>
+                                </div>
+                                <span className={styles.profileLabel}>Entrar / Cadastrar</span>
+                            </Link>
+                        )}
+
+                        {/* Dropdown Menu */}
+                        {user && dropdownOpen && (
+                            <div className={styles.dropdownMenu}>
+                                <Link to="/profile" className={styles.dropdownItem} onClick={() => setDropdownOpen(false)}>
+                                    <UserIcon size={16} /> Meu Perfil
+                                </Link>
+                                <Link to="/passport" className={styles.dropdownItem} onClick={() => setDropdownOpen(false)}>
+                                    <BookOpen size={16} /> Meu Passaporte
+                                </Link>
+                                <button className={`${styles.dropdownItem} ${styles.logoutBtn}`} onClick={handleLogout}>
+                                    <LogOut size={16} /> Sair da conta
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     {/* Mobile Menu Toggle */}
                     <button className={styles.mobileToggle} onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
                         {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}

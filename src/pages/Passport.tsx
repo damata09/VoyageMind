@@ -1,144 +1,119 @@
-import { useRef, useState, useEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Environment, Float, Html, ContactShadows, Text } from '@react-three/drei';
-import * as THREE from 'three';
-import { motion } from 'framer-motion';
-import { Trophy, Compass, Lock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Trophy, Compass, Map as MapIcon, Star, Plus } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import styles from './Passport.module.css';
-import { getPassports, type PassportItem } from '../lib/api';
+import { getPassports, type PassportItem, createPassport } from '../lib/api';
 
-// --- 3D Components ---
-
-function Stamp({ position, unlocked, label }: { position: [number, number, number], unlocked: boolean, label: string }) {
-    const meshRef = useRef<THREE.Mesh>(null);
-    const [hovered, setHovered] = useState(false);
-
-    // Create a procedural golden stamp texture material
-    const material = new THREE.MeshStandardMaterial({
-        color: unlocked ? '#D4AF37' : '#2A2A35',
-        metalness: unlocked ? 0.8 : 0.2,
-        roughness: unlocked ? 0.2 : 0.8,
-        transparent: true,
-        opacity: unlocked ? 0.9 : 0.4,
-    });
-
-    useFrame((state) => {
-        if (meshRef.current && hovered && unlocked) {
-            meshRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 2) * 0.1;
-            meshRef.current.position.z = position[2] + Math.sin(state.clock.elapsedTime * 4) * 0.05;
-        } else if (meshRef.current) {
-            meshRef.current.rotation.y = THREE.MathUtils.lerp(meshRef.current.rotation.y, 0, 0.1);
-            meshRef.current.position.z = THREE.MathUtils.lerp(meshRef.current.position.z, position[2], 0.1);
-        }
-    });
-
-    return (
-        <group position={position}>
-            <mesh
-                ref={meshRef}
-                onPointerOver={() => setHovered(true)}
-                onPointerOut={() => setHovered(false)}
-                material={material}
-            >
-                <cylinderGeometry args={[0.3, 0.3, 0.05, 32]} />
-                <meshStandardMaterial attach="material" color={unlocked ? '#D4AF37' : '#333'} />
-                {unlocked && (
-                    <Html position={[0, -0.4, 0]} center className={styles.stampLabelHtml}>
-                        <div className={hovered ? styles.stampLabelHover : styles.stampLabel}>
-                            {label}
-                        </div>
-                    </Html>
-                )}
-            </mesh>
-            {/* Decorative inner ring */}
-            {unlocked && (
-                <mesh position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                    <ringGeometry args={[0.22, 0.25, 32]} />
-                    <meshStandardMaterial color="#FFF" opacity={0.5} transparent />
-                </mesh>
-            )}
-        </group>
-    );
-}
-
-function PassportBook() {
-    const groupRef = useRef<THREE.Group>(null);
-
-    useFrame((state) => {
-        if (groupRef.current) {
-            groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.05;
-        }
-    });
-
-    return (
-        <group ref={groupRef} rotation={[0.4, -0.2, 0]}>
-            <Float speed={2} rotationIntensity={0.2} floatIntensity={0.5}>
-                {/* Book Cover / Base */}
-                <mesh position={[0, 0, -0.1]} castShadow receiveShadow>
-                    <boxGeometry args={[3, 4, 0.2]} />
-                    <meshStandardMaterial color="#020617" roughness={0.6} />
-                </mesh>
-
-                {/* Book Page (Left) */}
-                <mesh position={[-1.4, 0, 0.05]} castShadow receiveShadow>
-                    <boxGeometry args={[0.1, 3.8, 0.02]} />
-                    <meshStandardMaterial color="#e2e8f0" />
-                </mesh>
-
-                {/* Book Page (Right - Open) */}
-                <mesh position={[0, 0, 0.02]} castShadow receiveShadow>
-                    <boxGeometry args={[2.8, 3.8, 0.05]} />
-                    <meshStandardMaterial color="#ffffff" roughness={0.9} />
-                </mesh>
-
-                <Text
-                    position={[0, 1.5, 0.06]}
-                    fontSize={2.5}
-                    color="#020617"
-                    font="https://fonts.gstatic.com/s/outfit/v11/QGYyz_MVcBeNP4NJtEtq.woff"
-                    anchorX="center"
-                    anchorY="middle"
-                >
-                    PASSAPORTE
-                </Text>
-
-                {/* Stamps grid */}
-                <Stamp position={[-0.8, 0.5, 0.1]} unlocked={true} label="Explorador Urbano" />
-                <Stamp position={[0.8, 0.5, 0.1]} unlocked={true} label="Notívago" />
-                <Stamp position={[-0.8, -0.5, 0.1]} unlocked={true} label="Ponto Secreto" />
-                <Stamp position={[0.8, -0.5, 0.1]} unlocked={false} label="Secreto" />
-                <Stamp position={[0, 0, 0.1]} unlocked={false} label="Secreto" />
-
-            </Float>
-        </group>
-    );
-}
-
-// --- Main Page Component ---
+type LocalVisit = {
+    id: number;
+    name: string;
+    lat: number;
+    lng: number;
+    rating: number;
+    review: string;
+    date: string;
+};
 
 export function Passport() {
     const [passports, setPassports] = useState<PassportItem[]>([]);
+    const [localHistory, setLocalHistory] = useState<LocalVisit[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [viewMode, setViewMode] = useState<'3D' | 'Map'>('Map');
+
+    // Add Past Trip Modal State
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [addPlace, setAddPlace] = useState('');
+    const [addRating, setAddRating] = useState(5);
+    const [addReview, setAddReview] = useState('');
+    const [addDate, setAddDate] = useState('');
+    const [addLoading, setAddLoading] = useState(false);
 
     useEffect(() => {
         async function load() {
             try {
                 setLoading(true);
                 const data = await getPassports();
-                setPassports(data);
+                setPassports(data.reverse());
             } catch (err) {
                 if (err instanceof Error) {
-                    setError(err.message);
+                    // setError(err.message);
                 } else {
-                    setError('Erro ao carregar passaporte. Faça login para ver seus carimbos.');
+                    // setError('Erro ao carregar passaporte. Faça login para ver seus carimbos da nuvem.');
                 }
             } finally {
+                const stored = localStorage.getItem('voyagemind_visits');
+                if (stored) {
+                    setLocalHistory(JSON.parse(stored).reverse());
+                }
                 setLoading(false);
             }
         }
         load();
     }, []);
+
+    const initialCenter: [number, number] = localHistory.length > 0 
+        ? [localHistory[0].lat, localHistory[0].lng]
+        : [20, 0];
+
+    async function handleAddPastTrip() {
+        if (!addPlace.trim()) return;
+        setAddLoading(true);
+
+        try {
+            // Geocode
+            const geoRes = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addPlace)}&limit=1`,
+                { headers: { 'Accept-Language': 'pt-BR' } }
+            );
+            const geoData = await geoRes.json();
+
+            if (!geoData.length) {
+                alert('Local não encontrado no mapa. Tente ser mais específico.');
+                setAddLoading(false);
+                return;
+            }
+
+            const lat = Number(geoData[0].lat);
+            const lng = Number(geoData[0].lon);
+            const dateStr = addDate ? new Date(addDate).toISOString() : new Date().toISOString();
+
+            try {
+                await createPassport({
+                    title: geoData[0].display_name.split(',')[0],
+                    description: addReview,
+                    tag: 'Anterior'
+                });
+            } catch(e) {
+               // ignore cloud errors, we save locally.
+            }
+
+            const newVisit: LocalVisit = {
+                id: Date.now(),
+                name: geoData[0].display_name.split(',')[0],
+                lat,
+                lng,
+                rating: addRating,
+                review: addReview,
+                date: dateStr
+            };
+
+            const updatedHistory = [newVisit, ...localHistory];
+            setLocalHistory(updatedHistory);
+            localStorage.setItem('voyagemind_visits', JSON.stringify(updatedHistory));
+
+            setShowAddModal(false);
+            setAddPlace('');
+            setAddReview('');
+            setAddRating(5);
+            setAddDate('');
+
+        } catch (e) {
+            alert('Erro ao buscar o local ou salvar. Tente novamente.');
+        } finally {
+            setAddLoading(false);
+        }
+    }
 
     return (
         <div className={styles.container}>
@@ -155,73 +130,117 @@ export function Passport() {
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.2 }}
                 >
-                    Seu legado de exploração, belamente registrado.
+                    Seu legado de exploração. Acompanhe sua jornada.
                 </motion.p>
             </div>
 
             <div className={styles.contentGrid}>
+                {/* Visualizer Section */}
+                <div className={styles.visualizerContainer}>
+                    <div className={styles.viewToggle}>
+                        <button 
+                            className={viewMode === 'Map' ? styles.toggleBtnActive : styles.toggleBtn}
+                            onClick={() => setViewMode('Map')}
+                        >
+                            <MapIcon size={18} /> Mapa de Conquistas
+                        </button>
+                    </div>
 
-                {/* 3D Canvas Section */}
-                <div className={styles.canvasContainer}>
-                    <div className={styles.canvasGlow} />
-                    <Canvas shadows camera={{ position: [0, 0, 6], fov: 45 }}>
-                        <ambientLight intensity={0.5} />
-                        <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} castShadow />
-                        <pointLight position={[-10, -10, -10]} intensity={0.5} />
-
-                        <PassportBook />
-
-                        <ContactShadows position={[0, -2.5, 0]} opacity={0.4} scale={10} blur={2} far={4} />
-                        <Environment preset="city" />
-                        <OrbitControls
-                            enableZoom={false}
-                            enablePan={false}
-                            minPolarAngle={Math.PI / 3}
-                            maxPolarAngle={Math.PI / 1.5}
-                            minAzimuthAngle={-Math.PI / 4}
-                            maxAzimuthAngle={Math.PI / 4}
-                        />
-                    </Canvas>
-                    <div className={styles.dragHint}>Arraste para inspecionar seu Passaporte</div>
+                    <AnimatePresence mode="wait">
+                        {viewMode === 'Map' && (
+                            <motion.div 
+                                className={styles.mapWrap}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                            >
+                                <MapContainer
+                                    center={initialCenter}
+                                    zoom={localHistory.length > 0 ? 4 : 2}
+                                    className={styles.historyMap}
+                                    scrollWheelZoom={true}
+                                >
+                                    <TileLayer
+                                        attribution='&copy; OpenStreetMap'
+                                        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                                    />
+                                    {localHistory.map((visit, i) => (
+                                        <Marker key={i} position={[visit.lat, visit.lng]}>
+                                            <Popup className={styles.darkPopup}>
+                                                <strong>{visit.name}</strong>
+                                                <div className={styles.popupStars}>
+                                                    {Array(visit.rating).fill(0).map((_, i) => <Star key={i} size={12} color="#D4AF37" fill="#D4AF37" />)}
+                                                </div>
+                                                <p>"{visit.review}"</p>
+                                            </Popup>
+                                        </Marker>
+                                    ))}
+                                </MapContainer>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
 
-                {/* Achievements List */}
+                {/* Achievements Timeline */}
                 <div className={styles.achievementsPanel}>
                     <div className={styles.panelHeader}>
-                        <h2>Coleção</h2>
-                        <span className={styles.stats}>3 / 50 Carimbos</span>
+                        <div>
+                            <h2>Diário de Bordo</h2>
+                            <span className={styles.stats}>{localHistory.length + passports.length} Registros</span>
+                        </div>
+                        <button 
+                            className={styles.addTripBtn}
+                            onClick={() => setShowAddModal(true)}
+                        >
+                            <Plus size={16} /> Historico
+                        </button>
                     </div>
 
                     <div className={styles.timeline}>
-                        {loading && (
-                            <p className={styles.statusText}>Carregando seus carimbos...</p>
-                        )}
-
-                        {error && !loading && (
-                            <p className={styles.errorText}>{error}</p>
-                        )}
-
-                        {!loading && !error && passports.length === 0 && (
-                            <p className={styles.statusText}>
-                                Nenhum carimbo ainda. Explore e crie novos passports pela API!
-                            </p>
-                        )}
-
-                        {!loading && !error && passports.map((item, index) => (
+                        {loading && <p className={styles.statusText}>Carregando carimbos...</p>}
+                        
+                        {/* Render Local Visited Places with Rating */}
+                        {localHistory.map((visit, index) => (
                             <motion.div
-                                key={item.id}
-                                className={`glass-panel ${styles.achievementCard}`}
+                                key={`local-\${index}`}
+                                className={`glass-panel \${styles.achievementCard}`}
                                 initial={{ opacity: 0, x: 50 }}
                                 animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.3 + (index * 0.1) }}
-                                whileHover={{ scale: 1.02 }}
+                                transition={{ delay: index * 0.1 }}
                             >
                                 <div className={styles.iconBox}>
-                                    {item.tag === 'Notívago' ? <Trophy size={20} /> : <Compass size={20} />}
+                                    <Compass size={20} />
+                                </div>
+                                <div className={styles.cardDetails}>
+                                    <div className={styles.titleRow}>
+                                        <h3>{visit.name}</h3>
+                                        <div className={styles.starRow}>
+                                            {visit.rating} <Star size={14} fill="#D4AF37" color="#D4AF37"/>
+                                        </div>
+                                    </div>
+                                    <p className={styles.reviewText}>"{visit.review || 'Sem comentários.'}"</p>
+                                </div>
+                                <div className={styles.date}>
+                                    {new Date(visit.date).toLocaleDateString('pt-BR')}
+                                </div>
+                            </motion.div>
+                        ))}
+
+                        {/* Render Cloud Passports */}
+                        {passports.map((item, index) => (
+                            <motion.div
+                                key={`cloud-\${item.id}`}
+                                className={`glass-panel \${styles.achievementCard}`}
+                                initial={{ opacity: 0, x: 50 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: (localHistory.length + index) * 0.1 }}
+                            >
+                                <div className={styles.iconBoxCloud}>
+                                    <Trophy size={20} />
                                 </div>
                                 <div className={styles.cardDetails}>
                                     <h3>{item.title}</h3>
-                                    <p>{item.description ?? 'Carimbo criado pelo seu VoyageMind.'}</p>
+                                    <p>{item.description ?? 'Carimbo base da API.'}</p>
                                 </div>
                                 <div className={styles.date}>
                                     {new Date(item.createdAt).toLocaleDateString('pt-BR')}
@@ -229,24 +248,87 @@ export function Passport() {
                             </motion.div>
                         ))}
 
-                        {/* Locked placeholders */}
-                        <motion.div
-                            className={`glass-panel ${styles.lockedCard}`}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.6 }}
-                        >
-                            <Lock size={20} className={styles.lockedIcon} />
-                            <div className={styles.cardDetails}>
-                                <div className={styles.lockedText}>Carimbo Sazonal (Inverno)</div>
-                                <div className={styles.progressText}>0/3 Montanhas visitadas</div>
+                        {!loading && passports.length === 0 && localHistory.length === 0 && (
+                            <div className={styles.emptyState}>
+                                <Compass size={40} className={styles.emptyIcon} />
+                                <p>Seu Passaporte está em branco.</p>
+                                <span>Você pode explorar novos locais ou adicionar antigas viagens no botão acima.</span>
                             </div>
-                        </motion.div>
-
+                        )}
                     </div>
                 </div>
-
             </div>
+
+            {/* Add Past Trip Modal */}
+            <AnimatePresence>
+                {showAddModal && (
+                    <motion.div 
+                        className={styles.modalOverlay}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                    >
+                        <motion.div 
+                            className={`glass-panel \${styles.modalContent}`}
+                            initial={{ scale: 0.95 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0.95 }}
+                        >
+                            <div className={styles.modalHeader}>
+                                <h3>Adicionar Viagem Baseada no Passado</h3>
+                                <button className={styles.closeBtn} onClick={() => setShowAddModal(false)}>×</button>
+                            </div>
+                            
+                            <div className={styles.modalBody}>
+                                <label>Lugar Visitado (Cidade, País, Ponto)</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Ex: Machu Picchu, Peru" 
+                                    className={styles.modalInput}
+                                    value={addPlace}
+                                    onChange={(e) => setAddPlace(e.target.value)}
+                                />
+
+                                <label>Data da Viagem (Opcional)</label>
+                                <input 
+                                    type="date" 
+                                    className={styles.modalInput}
+                                    value={addDate}
+                                    onChange={(e) => setAddDate(e.target.value)}
+                                />
+
+                                <label>Sua Nota</label>
+                                <div className={styles.starsSelect}>
+                                    {[1,2,3,4,5].map(s => (
+                                        <Star 
+                                            key={s} size={28} 
+                                            className={s <= addRating ? styles.starFilled : styles.starEmpty}
+                                            onClick={() => setAddRating(s)}
+                                        />
+                                    ))}
+                                </div>
+
+                                <label>Suas Memórias (Comentário)</label>
+                                <textarea
+                                    className={styles.modalInput}
+                                    rows={3}
+                                    placeholder="Como foi a experiência?"
+                                    value={addReview}
+                                    onChange={(e) => setAddReview(e.target.value)}
+                                />
+
+                                <button 
+                                    className={styles.modalSubmitBtn}
+                                    onClick={handleAddPastTrip}
+                                    disabled={addLoading}
+                                >
+                                    {addLoading ? 'Calculando Coordenadas...' : 'Carimbar Passaporte'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
