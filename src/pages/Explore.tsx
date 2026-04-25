@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LocateFixed, Search, Sparkles, MapPin, Star } from 'lucide-react';
+import { LocateFixed, Search, Sparkles, MapPin, Star, Download } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+// @ts-ignore
+import html2pdf from 'html2pdf.js';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import styles from './Explore.module.css';
-import { getAiSuggestions, createPassport } from '../lib/api';
+import { sendAiChatMessage, createPassport } from '../lib/api';
 import { useAuth } from '../lib/AuthContext';
 
 type Place = {
@@ -30,7 +33,8 @@ function MapFlyTo({ center, zoom }: { center: LatLngExpression; zoom: number }) 
 }
 
 export function Explore() {
-    const [query, setQuery] = useState('');
+    const location = useLocation();
+    const [query, setQuery] = useState(location.state?.q || '');
     const [center, setCenter] = useState<LatLngExpression>(WORLD_CENTER);
     const [zoom, setZoom] = useState(2);
     const [places, setPlaces] = useState<Place[]>([]);
@@ -40,11 +44,34 @@ export function Explore() {
 
     // AI Planner State
     const [showAiModal, setShowAiModal] = useState(false);
-    const [aiBudget, setAiBudget] = useState('Médio');
-    const [aiDays, setAiDays] = useState(3);
-    const [aiResult, setAiResult] = useState<{ title: string; overview: string; itinerary: string[]; tags: string[] } | null>(null);
+    const [chatHistory, setChatHistory] = useState<{ role: "user" | "model", text: string }[]>([]);
+    const [chatInput, setChatInput] = useState('');
     const [aiLoading, setAiLoading] = useState(false);
     const [blindMode, setBlindMode] = useState(false);
+    const [pdfGenerating, setPdfGenerating] = useState(false);
+
+    async function handleExportPDF() {
+        const element = document.getElementById('pdf-content');
+        if (!element) return;
+        
+        setPdfGenerating(true);
+        element.style.display = 'block';
+        
+        const opt = {
+            margin:       0.5,
+            filename:     'Roteiro-VoyageMind.pdf',
+            image:        { type: 'jpeg' as const, quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+        
+        try {
+            await html2pdf().set(opt as any).from(element).save();
+        } finally {
+            element.style.display = 'none';
+            setPdfGenerating(false);
+        }
+    }
 
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -56,9 +83,9 @@ export function Explore() {
 
     const selectedPlace = places.find((p) => p.id === selectedPlaceId) ?? null;
 
-    async function handleSearchSubmit(e: React.FormEvent) {
-        e.preventDefault();
-        const trimmed = query.trim();
+    async function handleSearchSubmit(e?: React.FormEvent, searchStr?: string) {
+        if (e) e.preventDefault();
+        const trimmed = (searchStr !== undefined ? searchStr : query).trim();
         if (!trimmed) {
             setCenter(WORLD_CENTER);
             setZoom(2);
@@ -94,11 +121,12 @@ export function Explore() {
             const overpassQuery = `
                 [out:json][timeout:25];
                 (
-                  node["tourism"="attraction"](around:5000,${latNum},${lonNum});
-                  node["historic"](around:5000,${latNum},${lonNum});
-                  node["natural"="viewpoint"](around:5000,${latNum},${lonNum});
+                  nwr["tourism"](around:5000,${latNum},${lonNum});
+                  nwr["historic"](around:5000,${latNum},${lonNum});
+                  nwr["leisure"="park"](around:5000,${latNum},${lonNum});
+                  nwr["amenity"="restaurant"](around:5000,${latNum},${lonNum});
                 );
-                out body 40;
+                out center 100;
             `;
 
             const overpassRes = await fetch('https://overpass-api.de/api/interpreter', {
@@ -110,17 +138,17 @@ export function Explore() {
             const parsed: Place[] =
                 overpassData.elements?.map((el: any) => ({
                     id: el.id,
-                    name: el.tags?.name ?? 'Ponto sem nome',
-                    type: el.tags?.tourism === 'attraction' ? 'Ponto Turístico' :
-                          el.tags?.historic ? 'Local Histórico' : 'Mirante/Natureza',
-                    lat: el.lat,
-                    lng: el.lon,
-                })) ?? [];
+                    name: el.tags?.name ?? 'Local Turístico',
+                    type: el.tags?.tourism ? 'Ponto Turístico' :
+                          el.tags?.historic ? 'Local Histórico' : 
+                          el.tags?.leisure ? 'Parque/Lazer' : 'Restaurante/Café',
+                    lat: el.lat ?? el.center?.lat,
+                    lng: el.lon ?? el.center?.lon,
+                })).filter((p: any) => p.name !== 'Local Turístico' && p.lat && p.lng) ?? [];
 
             setPlaces(parsed);
             setSelectedPlaceId(null);
             setReviewing(false); // reset view
-            setAiResult(null);
 
             if (!parsed.length) {
                 setError('Não encontrei pontos turísticos próximos nesse raio.');
@@ -132,23 +160,42 @@ export function Explore() {
         }
     }
 
-    async function handleAiSuggest() {
-        if (!query.trim()) {
-             setError("Por favor, informe um Destino (Cidade) para gerar o roteiro.");
-             return;
+    useEffect(() => {
+        if (location.state?.q) {
+            handleSearchSubmit(undefined, location.state.q);
+            window.history.replaceState({}, document.title);
         }
+    }, [location.state?.q]);
+
+    async function handleAiSuggest() {
+        if (!chatInput.trim()) return;
+        
+        const userMsg = chatInput.trim();
+        setChatInput('');
+        
+        const newHistory = [...chatHistory, { role: "user" as const, text: userMsg }];
+        setChatHistory(newHistory);
         setAiLoading(true);
+
         try {
-             const result = await getAiSuggestions({
-                 place: query,
-                 budget: aiBudget,
-                 days: aiDays,
+             const apiHistory = chatHistory.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
+             
+             const result = await sendAiChatMessage({
+                 message: userMsg,
+                 history: apiHistory,
                  blindMode
              });
-             setAiResult(result);
+             
+             setChatHistory([...newHistory, { role: "model" as const, text: result.text }]);
+             
+             if (blindMode) {
+                 document.documentElement.setAttribute('data-theme', 'mystery');
+             } else {
+                 document.documentElement.setAttribute('data-theme', 'urban');
+             }
         } catch (e) {
              console.error(e);
-             setError("Falha ao gerar o roteiro. Nossa IA pode estar indisponível.");
+             setError("Falha ao comunicar com a IA. A chave GEMINI_API_KEY está configurada no backend?");
         } finally {
              setAiLoading(false);
         }
@@ -223,6 +270,14 @@ export function Explore() {
                                     setCenter([place.lat, place.lng]);
                                     setZoom(15);
                                     setReviewing(false);
+
+                                    if (place.type === 'Mirante/Natureza') {
+                                        document.documentElement.setAttribute('data-theme', 'nature');
+                                    } else if (place.type === 'Local Histórico') {
+                                        document.documentElement.setAttribute('data-theme', 'historic');
+                                    } else {
+                                        document.documentElement.setAttribute('data-theme', 'urban');
+                                    }
                                 },
                             }}
                         >
@@ -279,7 +334,7 @@ export function Explore() {
                             setSelectedPlaceId(null);
                             setQuery('');
                             setPlaces([]);
-                            setAiResult(null);
+                            document.documentElement.removeAttribute('data-theme');
                         }}
                     >
                         <LocateFixed size={20} />
@@ -304,84 +359,58 @@ export function Explore() {
                         >
                             <div className={styles.aiHeader}>
                                 <h3><Sparkles size={20} className={styles.goldText} /> Planejador IA</h3>
-                                <button onClick={() => setShowAiModal(false)} className={styles.closeBtn}>×</button>
+                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                    {chatHistory.length > 0 && (
+                                        <button onClick={handleExportPDF} disabled={pdfGenerating} style={{ background: 'rgba(212, 175, 55, 0.2)', color: 'var(--color-gold)', border: '1px solid var(--color-gold)', borderRadius: '4px', padding: '0.3rem 0.8rem', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                            <Download size={14} /> {pdfGenerating ? 'Gerando...' : 'Baixar PDF'}
+                                        </button>
+                                    )}
+                                    <button onClick={() => setShowAiModal(false)} className={styles.closeBtn}>×</button>
+                                </div>
                             </div>
 
-                            {!aiResult ? (
-                                <div className={styles.aiForm}>
-                                    <p>A IA criará um roteiro mágico inspirado no seu estilo.</p>
-                                    
-                                    <label>Destino Principal</label>
+                            <div className={styles.aiForm}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(212, 175, 55, 0.1)', padding: '0.8rem', borderRadius: '8px', cursor: 'pointer', marginBottom: '1rem', border: '1px dashed rgba(212, 175, 55, 0.4)' }} onClick={() => setBlindMode(!blindMode)}>
+                                    <input type="checkbox" checked={blindMode} onChange={(e) => setBlindMode(e.target.checked)} />
+                                    <div>
+                                        <strong style={{ color: 'var(--color-gold)', display: 'block', fontSize: '0.9rem' }}>Modo Misterioso</strong>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Esconda o destino de mim nas respostas!</span>
+                                    </div>
+                                </div>
+
+                                <div style={{ maxHeight: '300px', height: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem', padding: '0.5rem' }}>
+                                    {chatHistory.length === 0 && (
+                                        <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', marginTop: 'auto', marginBottom: 'auto' }}>Comece a planejar seu roteiro conversando com a IA real!</p>
+                                    )}
+                                    {chatHistory.map((msg, i) => (
+                                        <div key={i} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', background: msg.role === 'user' ? 'var(--color-turquoise)' : 'rgba(255,255,255,0.05)', color: msg.role === 'user' ? '#000' : '#fff', padding: '0.8rem', borderRadius: '8px', maxWidth: '85%', overflowX: 'auto' }}>
+                                            {msg.role === 'model' ? (
+                                                <div style={{ fontSize: '0.9rem', lineHeight: '1.5' }}>
+                                                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                                                </div>
+                                            ) : (
+                                                <p style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: '0.9rem' }}>{msg.text}</p>
+                                            )}
+                                        </div>
+                                    ))}
+                                    {aiLoading && <div className={styles.spinner} style={{ alignSelf: 'center', marginTop: '1rem' }} />}
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
                                     <input 
                                         type="text" 
-                                        placeholder="Ex: Kyoto, Orlando, Paris..."
-                                        value={query} 
-                                        onChange={e => setQuery(e.target.value)}
+                                        placeholder="Ex: Vou para Paris, me ajude a planejar?"
+                                        value={chatInput} 
+                                        onChange={e => setChatInput(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && handleAiSuggest()}
                                         className={styles.aiInput}
-                                        style={{ marginBottom: '0.5rem' }}
+                                        style={{ flex: 1, padding: '0.8rem' }}
                                     />
-                                    
-                                    <label>Orçamento da Viagem</label>
-                                    <div className={styles.btnGroup}>
-                                        {['Baixo', 'Médio', 'Alto'].map(b => (
-                                            <button 
-                                                key={b} 
-                                                className={aiBudget === b ? styles.btnGroupActive : styles.btnGroupItem}
-                                                onClick={() => setAiBudget(b)}
-                                            >
-                                                {b}
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    <label>Duração (Dias)</label>
-                                    <input 
-                                        type="number" 
-                                        min={1} 
-                                        max={30} 
-                                        value={aiDays} 
-                                        onChange={e => setAiDays(Number(e.target.value))}
-                                        className={styles.aiInput}
-                                        style={{ marginBottom: '1rem' }}
-                                    />
-
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(212, 175, 55, 0.1)', padding: '1rem', borderRadius: '8px', border: '1px dashed rgba(212, 175, 55, 0.4)', cursor: 'pointer' }} onClick={() => setBlindMode(!blindMode)}>
-                                        <input type="checkbox" checked={blindMode} onChange={(e) => setBlindMode(e.target.checked)} style={{ transform: 'scale(1.2)' }} />
-                                        <div>
-                                            <strong style={{ color: 'var(--color-gold)', display: 'block' }}>Roteiro Misterioso</strong>
-                                            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Esconda o destino de mim, quero ser surpreendido!</span>
-                                        </div>
-                                    </div>
-
-                                    <button 
-                                        className={styles.actionButton} 
-                                        onClick={handleAiSuggest}
-                                        disabled={aiLoading}
-                                        style={{ marginTop: '0.5rem' }}
-                                    >
-                                        {aiLoading ? 'Gerando...' : 'Gerar Roteiro Inteligente'}
+                                    <button className={styles.actionButton} onClick={handleAiSuggest} disabled={aiLoading} style={{ width: 'auto', padding: '0.8rem 1.5rem' }}>
+                                        Enviar
                                     </button>
                                 </div>
-                            ) : (
-                                <div className={styles.aiResult}>
-                                    <h4>{aiResult.title}</h4>
-                                    <p className={styles.aiOverview}>{aiResult.overview}</p>
-                                    <ul className={styles.itineraryList}>
-                                        {aiResult.itinerary.map((item, i) => (
-                                            <motion.li 
-                                                key={i}
-                                                initial={{ opacity: 0, x: -10 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: i * 0.1 }}
-                                            >
-                                                <div className={styles.dot} />
-                                                <p>{item}</p>
-                                            </motion.li>
-                                        ))}
-                                    </ul>
-                                    <button className={styles.secondaryButton} onClick={() => setAiResult(null)}>Novo Roteiro</button>
-                                </div>
-                            )}
+                            </div>
                         </motion.div>
                     </motion.div>
                 )}
@@ -456,6 +485,23 @@ export function Explore() {
                     {error}
                 </motion.div>
             )}
+            {/* Hidden PDF Template */}
+            <div id="pdf-content" style={{ display: 'none', padding: '2rem', color: '#333', background: '#fff', fontFamily: 'sans-serif' }}>
+                <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                    <h1 style={{ color: '#d4af37', borderBottom: '2px solid #d4af37', paddingBottom: '0.5rem', display: 'inline-block' }}>Seu Roteiro - VoyageMind</h1>
+                    <p style={{ color: '#666', fontSize: '0.9rem' }}>Um planejamento exclusivo gerado por Inteligência Artificial.</p>
+                </div>
+                
+                {chatHistory.filter(m => m.role === 'model').map((msg, i) => (
+                    <div key={i} style={{ marginBottom: '1.5rem', borderBottom: '1px solid #eee', paddingBottom: '1.5rem', lineHeight: '1.6' }}>
+                        <ReactMarkdown>{msg.text}</ReactMarkdown>
+                    </div>
+                ))}
+                
+                <div style={{ marginTop: '3rem', textAlign: 'center', fontSize: '0.8rem', color: '#999' }}>
+                    <p>Planejado via VoyageMind Platform • {new Date().toLocaleDateString()}</p>
+                </div>
+            </div>
         </div>
     );
 }

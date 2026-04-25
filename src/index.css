@@ -38,6 +38,42 @@
   --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+[data-theme="nature"] {
+  --color-sky-blue: #A3B18A;
+  --color-turquoise: #588157;
+  --color-purple-soft: #3A5A40;
+  --color-gold: #DAD7CD;
+  --color-bg-dark: #344E41;
+  --color-bg-darker: #0A1C15;
+}
+
+[data-theme="historic"] {
+  --color-sky-blue: #C6AC8F;
+  --color-turquoise: #EAE0D5;
+  --color-purple-soft: #5E503F;
+  --color-gold: #D4AF37;
+  --color-bg-dark: #2C2519;
+  --color-bg-darker: #1E1A11;
+}
+
+[data-theme="mystery"] {
+  --color-sky-blue: #E0AAFF;
+  --color-turquoise: #9D4EDD;
+  --color-purple-soft: #5A189A;
+  --color-gold: #C77DFF;
+  --color-bg-dark: #1E1433;
+  --color-bg-darker: #0F0A1A;
+}
+
+[data-theme="urban"] {
+  --color-sky-blue: #00F0FF;
+  --color-turquoise: #4CC9F0;
+  --color-purple-soft: #F72585;
+  --color-gold: #FF003C;
+  --color-bg-dark: #1A2235;
+  --color-bg-darker: #0B0F19;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -54,6 +90,7 @@ body {
   overflow-x: hidden;
   background-image: radial-gradient(circle at 15% 50%, rgba(64, 224, 208, 0.05), transparent 25%),
                     radial-gradient(circle at 85% 30%, rgba(177, 156, 217, 0.05), transparent 25%);
+  transition: background-color 1s ease;
 }
 
 a {

@@ -79,6 +79,7 @@ export interface PassportItem {
   title: string;
   description?: string | null;
   tag?: string | null;
+  unlockDate?: string | null;
   createdAt: string;
 }
 
@@ -90,6 +91,7 @@ export async function createPassport(input: {
   title: string;
   description?: string;
   tag?: string;
+  unlockDate?: string;
 }) {
   return apiFetch<PassportItem>("/passports", {
     method: "POST",
@@ -109,6 +111,17 @@ export async function getAiSuggestions(input: {
     itinerary: string[];
     tags: string[];
   }>("/ai/suggest", {
+    method: "POST",
+    body: JSON.stringify(input)
+  }, false);
+}
+
+export async function sendAiChatMessage(input: {
+  message: string;
+  history?: { role: "user" | "model", parts: { text: string }[] }[];
+  blindMode?: boolean;
+}) {
+  return apiFetch<{ text: string }>("/ai/chat", {
     method: "POST",
     body: JSON.stringify(input)
   }, false);

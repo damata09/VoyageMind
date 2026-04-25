@@ -75,7 +75,7 @@ export function Navbar() {
 
                 {/* Global Search & Profile */}
                 <div className={styles.actions}>
-                    <button className={styles.iconButton} aria-label="Pesquisar">
+                    <button className={styles.iconButton} aria-label="Pesquisar" onClick={() => navigate('/explore')}>
                         <Search size={20} />
                     </button>
 

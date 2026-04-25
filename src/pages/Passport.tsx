@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Compass, Map as MapIcon, Star, Plus } from 'lucide-react';
+import { Trophy, Compass, Map as MapIcon, Star, Plus, Lock } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import styles from './Passport.module.css';
 import { getPassports, type PassportItem, createPassport } from '../lib/api';
@@ -13,6 +13,7 @@ type LocalVisit = {
     rating: number;
     review: string;
     date: string;
+    unlockDate?: string;
 };
 
 export function Passport() {
@@ -28,6 +29,10 @@ export function Passport() {
     const [addReview, setAddReview] = useState('');
     const [addDate, setAddDate] = useState('');
     const [addLoading, setAddLoading] = useState(false);
+    
+    // Time Capsule
+    const [isCapsule, setIsCapsule] = useState(false);
+    const [capsuleUnlockDate, setCapsuleUnlockDate] = useState('');
 
     useEffect(() => {
         async function load() {
@@ -36,11 +41,7 @@ export function Passport() {
                 const data = await getPassports();
                 setPassports(data.reverse());
             } catch (err) {
-                if (err instanceof Error) {
-                    // setError(err.message);
-                } else {
-                    // setError('Erro ao carregar passaporte. Faça login para ver seus carimbos da nuvem.');
-                }
+                // ignore
             } finally {
                 const stored = localStorage.getItem('voyagemind_visits');
                 if (stored) {
@@ -58,6 +59,12 @@ export function Passport() {
 
     async function handleAddPastTrip() {
         if (!addPlace.trim()) return;
+        
+        if (isCapsule && !capsuleUnlockDate) {
+            alert("Para uma cápsula do tempo, defina a data de abertura!");
+            return;
+        }
+        
         setAddLoading(true);
 
         try {
@@ -77,12 +84,14 @@ export function Passport() {
             const lat = Number(geoData[0].lat);
             const lng = Number(geoData[0].lon);
             const dateStr = addDate ? new Date(addDate).toISOString() : new Date().toISOString();
+            const unlockStr = isCapsule ? new Date(capsuleUnlockDate).toISOString() : undefined;
 
             try {
                 await createPassport({
                     title: geoData[0].display_name.split(',')[0],
                     description: addReview,
-                    tag: 'Anterior'
+                    tag: isCapsule ? 'Cápsula' : 'Anterior',
+                    unlockDate: unlockStr
                 });
             } catch(e) {
                // ignore cloud errors, we save locally.
@@ -95,7 +104,8 @@ export function Passport() {
                 lng,
                 rating: addRating,
                 review: addReview,
-                date: dateStr
+                date: dateStr,
+                unlockDate: unlockStr
             };
 
             const updatedHistory = [newVisit, ...localHistory];
@@ -107,6 +117,8 @@ export function Passport() {
             setAddReview('');
             setAddRating(5);
             setAddDate('');
+            setIsCapsule(false);
+            setCapsuleUnlockDate('');
 
         } catch (e) {
             alert('Erro ao buscar o local ou salvar. Tente novamente.');
@@ -164,17 +176,29 @@ export function Passport() {
                                         attribution='&copy; OpenStreetMap'
                                         url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                                     />
-                                    {localHistory.map((visit, i) => (
-                                        <Marker key={i} position={[visit.lat, visit.lng]}>
-                                            <Popup className={styles.darkPopup}>
-                                                <strong>{visit.name}</strong>
-                                                <div className={styles.popupStars}>
-                                                    {Array(visit.rating).fill(0).map((_, i) => <Star key={i} size={12} color="#D4AF37" fill="#D4AF37" />)}
-                                                </div>
-                                                <p>"{visit.review}"</p>
-                                            </Popup>
-                                        </Marker>
-                                    ))}
+                                    {localHistory.map((visit, i) => {
+                                        const isLocked = visit.unlockDate && new Date(visit.unlockDate) > new Date();
+                                        return (
+                                            <Marker key={i} position={[visit.lat, visit.lng]}>
+                                                <Popup className={styles.darkPopup}>
+                                                    {isLocked ? (
+                                                        <div style={{ textAlign: 'center' }}>
+                                                            <Lock size={20} style={{ margin: '0 auto', color: '#D4AF37' }} />
+                                                            <strong>Cápsula Trancada</strong>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <strong>{visit.name}</strong>
+                                                            <div className={styles.popupStars}>
+                                                                {Array(visit.rating).fill(0).map((_, i) => <Star key={i} size={12} color="#D4AF37" fill="#D4AF37" />)}
+                                                            </div>
+                                                            <p>"{visit.review}"</p>
+                                                        </>
+                                                    )}
+                                                </Popup>
+                                            </Marker>
+                                        );
+                                    })}
                                 </MapContainer>
                             </motion.div>
                         )}
@@ -200,53 +224,65 @@ export function Passport() {
                         {loading && <p className={styles.statusText}>Carregando carimbos...</p>}
                         
                         {/* Render Local Visited Places with Rating */}
-                        {localHistory.map((visit, index) => (
-                            <motion.div
-                                key={`local-\${index}`}
-                                className={`glass-panel \${styles.achievementCard}`}
-                                initial={{ opacity: 0, x: 50 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: index * 0.1 }}
-                            >
-                                <div className={styles.iconBox}>
-                                    <Compass size={20} />
-                                </div>
-                                <div className={styles.cardDetails}>
-                                    <div className={styles.titleRow}>
-                                        <h3>{visit.name}</h3>
-                                        <div className={styles.starRow}>
-                                            {visit.rating} <Star size={14} fill="#D4AF37" color="#D4AF37"/>
-                                        </div>
+                        {localHistory.map((visit, index) => {
+                            const isLocked = visit.unlockDate && new Date(visit.unlockDate) > new Date();
+
+                            return (
+                                <motion.div
+                                    key={`local-${index}`}
+                                    className={`glass-panel ${styles.achievementCard} ${isLocked ? styles.lockedCard : ''}`}
+                                    initial={{ opacity: 0, x: 50 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: index * 0.1 }}
+                                >
+                                    <div className={styles.iconBox}>
+                                        {isLocked ? <Lock size={20} /> : <Compass size={20} />}
                                     </div>
-                                    <p className={styles.reviewText}>"{visit.review || 'Sem comentários.'}"</p>
-                                </div>
-                                <div className={styles.date}>
-                                    {new Date(visit.date).toLocaleDateString('pt-BR')}
-                                </div>
-                            </motion.div>
-                        ))}
+                                    <div className={styles.cardDetails}>
+                                        <div className={styles.titleRow}>
+                                            <h3>{isLocked ? 'Cápsula do Tempo Misteriosa' : visit.name}</h3>
+                                            {!isLocked && (
+                                                <div className={styles.starRow}>
+                                                    {visit.rating} <Star size={14} fill="#D4AF37" color="#D4AF37"/>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <p className={styles.reviewText}>
+                                            {isLocked ? `Trancada. Abre em ${new Date(visit.unlockDate!).toLocaleDateString('pt-BR')}` : `"${visit.review || 'Sem comentários.'}"`}
+                                        </p>
+                                    </div>
+                                    <div className={styles.date}>
+                                        {new Date(visit.date).toLocaleDateString('pt-BR')}
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
 
                         {/* Render Cloud Passports */}
-                        {passports.map((item, index) => (
-                            <motion.div
-                                key={`cloud-\${item.id}`}
-                                className={`glass-panel \${styles.achievementCard}`}
-                                initial={{ opacity: 0, x: 50 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: (localHistory.length + index) * 0.1 }}
-                            >
-                                <div className={styles.iconBoxCloud}>
-                                    <Trophy size={20} />
-                                </div>
-                                <div className={styles.cardDetails}>
-                                    <h3>{item.title}</h3>
-                                    <p>{item.description ?? 'Carimbo base da API.'}</p>
-                                </div>
-                                <div className={styles.date}>
-                                    {new Date(item.createdAt).toLocaleDateString('pt-BR')}
-                                </div>
-                            </motion.div>
-                        ))}
+                        {passports.map((item, index) => {
+                            const isLocked = item.unlockDate && new Date(item.unlockDate) > new Date();
+
+                            return (
+                                <motion.div
+                                    key={`cloud-${item.id}`}
+                                    className={`glass-panel ${styles.achievementCard} ${isLocked ? styles.lockedCard : ''}`}
+                                    initial={{ opacity: 0, x: 50 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: (localHistory.length + index) * 0.1 }}
+                                >
+                                    <div className={styles.iconBoxCloud}>
+                                        {isLocked ? <Lock size={20} /> : <Trophy size={20} />}
+                                    </div>
+                                    <div className={styles.cardDetails}>
+                                        <h3>{isLocked ? 'Cápsula do Tempo Misteriosa' : item.title}</h3>
+                                        <p>{isLocked ? `Trancada. Abre em ${new Date(item.unlockDate!).toLocaleDateString('pt-BR')}` : (item.description ?? 'Carimbo base da API.')}</p>
+                                    </div>
+                                    <div className={styles.date}>
+                                        {new Date(item.createdAt).toLocaleDateString('pt-BR')}
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
 
                         {!loading && passports.length === 0 && localHistory.length === 0 && (
                             <div className={styles.emptyState}>
@@ -269,13 +305,13 @@ export function Passport() {
                         exit={{ opacity: 0 }}
                     >
                         <motion.div 
-                            className={`glass-panel \${styles.modalContent}`}
+                            className={`glass-panel ${styles.modalContent}`}
                             initial={{ scale: 0.95 }}
                             animate={{ scale: 1 }}
                             exit={{ scale: 0.95 }}
                         >
                             <div className={styles.modalHeader}>
-                                <h3>Adicionar Viagem Baseada no Passado</h3>
+                                <h3>Registrar Memória</h3>
                                 <button className={styles.closeBtn} onClick={() => setShowAddModal(false)}>×</button>
                             </div>
                             
@@ -312,17 +348,45 @@ export function Passport() {
                                 <textarea
                                     className={styles.modalInput}
                                     rows={3}
-                                    placeholder="Como foi a experiência?"
+                                    placeholder="Escreva uma mensagem para o futuro..."
                                     value={addReview}
                                     onChange={(e) => setAddReview(e.target.value)}
                                 />
+
+                                <div className={styles.capsuleToggle} style={{ margin: '1rem 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <input 
+                                        type="checkbox" 
+                                        id="isCapsule" 
+                                        checked={isCapsule} 
+                                        onChange={(e) => setIsCapsule(e.target.checked)} 
+                                        style={{ transform: 'scale(1.2)' }}
+                                    />
+                                    <label htmlFor="isCapsule" style={{ margin: 0, cursor: 'pointer', color: 'var(--color-gold)' }}>
+                                        <Lock size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                                        Criar Cápsula do Tempo
+                                    </label>
+                                </div>
+
+                                {isCapsule && (
+                                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} style={{ marginBottom: '1rem' }}>
+                                        <label>Data de Abertura da Cápsula</label>
+                                        <input 
+                                            type="date" 
+                                            className={styles.modalInput}
+                                            value={capsuleUnlockDate}
+                                            onChange={(e) => setCapsuleUnlockDate(e.target.value)}
+                                            min={new Date().toISOString().split('T')[0]}
+                                        />
+                                        <small style={{ color: 'var(--color-text-secondary)' }}>A memória ficará trancada no seu passaporte até esta data.</small>
+                                    </motion.div>
+                                )}
 
                                 <button 
                                     className={styles.modalSubmitBtn}
                                     onClick={handleAddPastTrip}
                                     disabled={addLoading}
                                 >
-                                    {addLoading ? 'Calculando Coordenadas...' : 'Carimbar Passaporte'}
+                                    {addLoading ? 'Calculando Coordenadas...' : (isCapsule ? 'Selar Cápsula' : 'Carimbar Passaporte')}
                                 </button>
                             </div>
                         </motion.div>

@@ -1,9 +1,21 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Compass, Sparkles } from 'lucide-react';
 import styles from './Landing.module.css';
 import { HeroGlobe } from '../components/HeroGlobe';
 
 export function Landing() {
+    const [searchQuery, setSearchQuery] = useState('');
+    const navigate = useNavigate();
+
+    const handleSearch = () => {
+        if (searchQuery.trim()) {
+            navigate('/explore', { state: { q: searchQuery } });
+        } else {
+            navigate('/explore');
+        }
+    };
     return (
         <div className={styles.container}>
             {/* Hero Section */}
@@ -44,8 +56,11 @@ export function Landing() {
                             type="text"
                             placeholder="Tente 'lugares tranquilos com vista bonita perto de mim'..."
                             className={styles.searchInput}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                         />
-                        <button className={styles.searchButton}>
+                        <button className={styles.searchButton} onClick={handleSearch}>
                             <Compass size={20} />
                         </button>
                     </motion.div>

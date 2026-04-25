@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import prisma from "../prisma";
+import { AppError } from "../utils/AppError";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -19,19 +20,17 @@ export function authenticate(
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Token não fornecido" });
+    throw new AppError("Token não fornecido", 401);
   }
 
   const token = authHeader.substring("Bearer ".length);
 
   try {
     const payload = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
-
     req.user = { id: payload.userId, email: payload.email };
-
     next();
   } catch (error) {
-    return res.status(401).json({ message: "Token inválido ou expirado" });
+    throw new AppError("Token inválido ou expirado", 401);
   }
 }
 
@@ -41,27 +40,22 @@ export async function loadAuthenticatedUser(
   next: NextFunction,
 ) {
   if (!req.user) {
-    return res.status(401).json({ message: "Usuário não autenticado" });
+    throw new AppError("Usuário não autenticado", 401);
   }
 
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      include: { passports: true },
-    });
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.id },
+    include: { passports: true },
+  });
 
-    if (!user) {
-      return res.status(404).json({ message: "Usuário não encontrado" });
-    }
-
-    (req as AuthRequest).user = {
-      id: user.id,
-      email: user.email,
-    };
-
-    next();
-  } catch (error) {
-    next(error);
+  if (!user) {
+    throw new AppError("Usuário não encontrado", 404);
   }
+
+  (req as AuthRequest).user = {
+    id: user.id,
+    email: user.email,
+  };
+
+  next();
 }
-

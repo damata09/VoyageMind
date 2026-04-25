@@ -12,7 +12,6 @@ function RotatingGlobe() {
             groupRef.current.rotation.y += 0.002;
             
             // Reação leve ao movimento do mouse holográfico
-            const mouseX = (state.pointer.x * Math.PI) / 10;
             const mouseY = (state.pointer.y * Math.PI) / 10;
             groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, mouseY, 0.1);
         }

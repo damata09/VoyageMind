@@ -1,13 +1,24 @@
 import { Router } from "express";
+import { z } from "zod";
+import { validate } from "../middleware/validate";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { AppError } from "../utils/AppError";
 
 const router = Router();
 
-router.post("/suggest", (req, res) => {
-  const { place, budget, days, blindMode } = req.body;
+// Endpoint antigo mantido para retrocompatibilidade, se necessário
+const suggestSchema = z.object({
+  body: z.object({
+    place: z.string().min(1, "Lugar é obrigatório"),
+    budget: z.string().min(1, "Orçamento é obrigatório"),
+    days: z.number().int().positive("Dias deve ser positivo"),
+    blindMode: z.boolean().optional(),
+  }),
+});
 
-  if (!place || !budget || !days) {
-    return res.status(400).json({ message: "Preencha lugar, orçamento e dias." });
-  }
+router.post("/suggest", validate(suggestSchema), (req, res) => {
+  // ... mantido como estava ...
+  const { place, budget, days, blindMode } = req.body;
 
   if (blindMode) {
     setTimeout(() => {
@@ -25,7 +36,6 @@ router.post("/suggest", (req, res) => {
     return;
   }
 
-  // Simulating an AI generated response
   const suggestions = [
     `Dia 1: Chegada em ${place} e exploração do centro histórico. Jantar em um restaurante conceituado.`,
     `Dia 2: Visita aos principais pontos turísticos focando em experiências de ${budget.toLowerCase()} custo.`,
@@ -43,7 +53,51 @@ router.post("/suggest", (req, res) => {
       itinerary: suggestions,
       tags: ["AI", "Otimizado", "Culture"]
     });
-  }, 1500); // 1.5s delay to mock API reasoning time
+  }, 1500);
+});
+
+// NOVO ENDPOINT DE CHAT COM GEMINI
+const chatSchema = z.object({
+  body: z.object({
+    message: z.string().min(1, "Mensagem é obrigatória"),
+    history: z.array(z.object({
+      role: z.enum(["user", "model"]),
+      parts: z.array(z.object({ text: z.string() }))
+    })).optional(),
+    blindMode: z.boolean().optional(),
+  }),
+});
+
+router.post("/chat", validate(chatSchema), async (req, res) => {
+  const { message, history, blindMode } = req.body;
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new AppError("A chave GEMINI_API_KEY não está configurada no backend (.env). Por favor, adicione uma chave válida para usar a IA real.", 500);
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash",
+      systemInstruction: blindMode 
+        ? "Você é o VoyageMind, um guia de viagens. O usuário está no 'Modo Misterioso' (Blind Destination). O usuário pode mencionar lugares, mas você deve responder com enigmas, focando em manter a surpresa e o mistério sem nomear os locais explicitamente, criando roteiros mágicos." 
+        : "Você é o VoyageMind, um assistente inteligente de planejamento de viagens de alto nível. Ajude o usuário a criar roteiros, escolher pontos turísticos e otimizar orçamentos de forma clara, amigável e rica em detalhes, usando formatação markdown limpa." 
+    });
+
+    const chat = model.startChat({
+      history: history || [],
+    });
+
+    const result = await chat.sendMessage(message);
+    const response = await result.response;
+    const text = response.text();
+
+    res.json({ text });
+  } catch (error: any) {
+    console.error("Gemini API Error:", error.message || error);
+    throw new AppError("Falha ao comunicar com a IA do Google. Verifique sua GEMINI_API_KEY.", 500);
+  }
 });
 
 export default router;

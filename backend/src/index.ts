@@ -4,6 +4,7 @@ import cors from "cors";
 import authRoutes from "./routes/auth";
 import passportRoutes from "./routes/passports";
 import aiRoutes from "./routes/ai";
+import { AppError } from "./utils/AppError";
 
 import path from "path";
 
@@ -25,6 +26,10 @@ app.use("/ai", aiRoutes);
 // Middleware de tratamento de erros genérico
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof AppError) {
+    return res.status(err.statusCode).json({ message: err.message });
+  }
+  
   console.error(err);
   res.status(500).json({ message: "Erro interno do servidor" });
 });
