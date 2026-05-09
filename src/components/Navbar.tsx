@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, Map, Home, Search, Menu, X, LogOut, User as UserIcon } from 'lucide-react';
+import { BookOpen, Map, Home, Search, Menu, X, LogOut, User as UserIcon, Moon } from 'lucide-react';
 import styles from './Navbar.module.css';
 import { useAuth } from '../lib/AuthContext';
 import { getApiBaseUrl } from '../lib/api';
@@ -14,6 +14,23 @@ export function Navbar() {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // High Contrast State
+    const [highContrast, setHighContrast] = useState(() => {
+        return localStorage.getItem('voyagemind_contrast') === 'true';
+    });
+
+    useEffect(() => {
+        if (highContrast) {
+            document.body.classList.add('high-contrast');
+            localStorage.setItem('voyagemind_contrast', 'true');
+        } else {
+            document.body.classList.remove('high-contrast');
+            localStorage.setItem('voyagemind_contrast', 'false');
+        }
+    }, [highContrast]);
+
+    const toggleHighContrast = () => setHighContrast(!highContrast);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -75,6 +92,15 @@ export function Navbar() {
 
                 {/* Global Search & Profile */}
                 <div className={styles.actions}>
+                    <button 
+                        className={styles.iconButton} 
+                        aria-label="Alternar Alto Contraste" 
+                        onClick={toggleHighContrast}
+                        title="Alto Contraste"
+                    >
+                        <Moon size={20} aria-hidden="true" />
+                    </button>
+
                     <button className={styles.iconButton} aria-label="Pesquisar Explorar" onClick={() => navigate('/explore')}>
                         <Search size={20} aria-hidden="true" />
                     </button>

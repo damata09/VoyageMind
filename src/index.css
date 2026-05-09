@@ -163,3 +163,24 @@ h2 {
     padding: 0 var(--spacing-md);
   }
 }
+
+/* High Contrast Mode */
+.high-contrast {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+.high-contrast * {
+  color: #ffffff !important;
+}
+
+.high-contrast .glass-panel,
+.high-contrast input,
+.high-contrast button {
+  border: 1px solid #ffffff !important;
+  background: #000000 !important;
+}
+
+.high-contrast img {
+  filter: contrast(1.5) !important;
+}

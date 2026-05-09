@@ -79,6 +79,9 @@
       "get": {
         "summary": "Get current user profile",
         "tags": ["Auth"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
         "responses": {
           "200": { "description": "User profile" }
         }
@@ -86,6 +89,9 @@
       "put": {
         "summary": "Update user profile",
         "tags": ["Auth"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -107,6 +113,9 @@
       "delete": {
         "summary": "Delete user account",
         "tags": ["Auth"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
         "responses": {
           "204": { "description": "Account deleted" }
         }
@@ -116,6 +125,9 @@
       "get": {
         "summary": "List user passports",
         "tags": ["Passports"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
         "responses": {
           "200": { "description": "List of passports" }
         }
@@ -123,6 +135,9 @@
       "post": {
         "summary": "Create a new passport",
         "tags": ["Passports"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -148,8 +163,113 @@
       "get": {
         "summary": "Get user passport statistics",
         "tags": ["Passports"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
         "responses": {
           "200": { "description": "User statistics" }
+        }
+      }
+    },
+    "/passports/{id}": {
+      "get": {
+        "summary": "Get a passport by ID",
+        "tags": ["Passports"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Passport object" }
+        }
+      },
+      "put": {
+        "summary": "Update a passport",
+        "tags": ["Passports"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "description": { "type": "string" },
+                  "tag": { "type": "string" },
+                  "unlockDate": { "type": "string", "format": "date" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Passport updated" }
+        }
+      },
+      "delete": {
+        "summary": "Delete a passport",
+        "tags": ["Passports"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Passport deleted" }
+        }
+      }
+    },
+    "/ai/chat": {
+      "post": {
+        "summary": "Chat with AI assistant",
+        "tags": ["AI"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": { "type": "string" },
+                  "history": {
+                    "type": "array",
+                    "items": { "type": "object" }
+                  },
+                  "blindMode": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "AI response" }
         }
       }
     }

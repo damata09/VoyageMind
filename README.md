@@ -4,6 +4,20 @@ Este repositório contém o projeto **VoyageMind**, um aplicativo full-stack com
 
 Este README explica como configurar e executar o projeto em outra máquina.
 
+## 👥 Integrantes
+- Henrique da Mata
+- Nicolas Alcantara
+- Kaique Basílio
+
+## 🌐 URL Pública
+- **Frontend (Produção):** [https://voyagemind.vercel.app](https://voyagemind.vercel.app)
+- **Backend (Produção):** [https://voyagemind-backend.onrender.com](https://voyagemind-backend.onrender.com)
+
+## 🛠 Tecnologias Utilizadas
+- **Frontend:** React, TypeScript, Vite, Framer Motion, React Router DOM
+- **Backend:** Node.js, Express, Prisma, SQLite, JWT, Bcrypt, Swagger, Jest
+- **Inteligência Artificial:** Google Gemini API
+
 ---
 
 ## 🚀 Pré-requisitos

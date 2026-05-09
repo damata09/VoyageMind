@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoyageMind - Documentação Acadêmica</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background-color: #fcfcfc;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            text-align: center;
+        }
+        h2 {
+            color: #2980b9;
+            margin-top: 30px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        h3 {
+            color: #34495e;
+            margin-top: 20px;
+        }
+        ul {
+            margin-bottom: 20px;
+        }
+        li {
+            margin-bottom: 5px;
+        }
+        .cover {
+            text-align: center;
+            margin-bottom: 50px;
+            padding: 40px;
+            background-color: #fff;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-radius: 8px;
+        }
+        .content {
+            background-color: #fff;
+            padding: 40px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-radius: 8px;
+        }
+        strong {
+            color: #2c3e50;
+        }
+        code {
+            background-color: #f8f9fa;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: Consolas, monospace;
+            color: #e74c3c;
+            font-size: 0.95em;
+        }
+        @media print {
+            body {
+                background-color: #fff;
+                padding: 0;
+            }
+            .cover, .content {
+                box-shadow: none;
+                padding: 0;
+            }
+            h1, h2 {
+                page-break-after: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cover">
+        <h1>VoyageMind: Assistente Inteligente de Roteiros de Viagem com Integração de IA e Arquitetura Limpa</h1>
+        <br>
+        <h3><strong>Alunos:</strong></h3>
+        <p>Henrique da Mata<br>Nicolas Alcantara<br>Kaique Basílio</p>
+    </div>
+
+    <div class="content">
+        <h2>1. Resumo</h2>
+        <p>O projeto <strong>VoyageMind</strong> propõe uma plataforma web moderna e acessível voltada para o planejamento de viagens. A aplicação funciona como um assistente de turismo inteligente (alimentado pela IA Generativa do Google Gemini) e um "passaporte digital" onde os usuários podem registrar, visualizar e acompanhar estatísticas de suas viagens. O desenvolvimento englobou práticas modernas de Engenharia de Software, incluindo testes automatizados com Jest, arquitetura em camadas (Clean Architecture), autenticação via JWT, documentação de API com Swagger e preocupações contínuas com acessibilidade (a11y) no front-end.</p>
+
+        <h2>2. Introdução</h2>
+        <p>Com o avanço da inteligência artificial, o planejamento de roteiros turísticos, antes uma tarefa trabalhosa e demorada, pode ser automatizado e personalizado. O VoyageMind nasce com o objetivo de solucionar essa dor, integrando um assistente virtual conversacional focado em turismo e um gerenciador pessoal de memórias ("Passaportes").</p>
+        <p>Além da proposta de valor em nível de produto, o projeto possui um foco estrito em excelência técnica, servindo como demonstração da aplicação prática de padrões de projeto (<em>Design Patterns</em>), separação de responsabilidades (Clean Architecture) e segurança da informação.</p>
+
+        <h2>3. Tecnologias e Ferramentas Utilizadas</h2>
+        <p>A solução foi construída utilizando uma stack unificada em JavaScript/TypeScript:</p>
+        <ul>
+            <li><strong>Front-end:</strong> React.js construído com Vite, garantindo performance e carregamento rápido.</li>
+            <li><strong>Back-end:</strong> Node.js com Express.</li>
+            <li><strong>Banco de Dados:</strong> SQLite, manipulado através do ORM Prisma.</li>
+            <li><strong>Testes:</strong> Jest (Unit testing da camada de Use Cases).</li>
+            <li><strong>Segurança:</strong> JSON Web Tokens (JWT) e Bcrypt para hash de senhas.</li>
+            <li><strong>Documentação de API:</strong> Swagger (OpenAPI).</li>
+            <li><strong>Inteligência Artificial:</strong> API do Google Gemini (gemini-2.5-flash).</li>
+            <li><strong>Deploy:</strong> Configurações preparadas para Vercel (Front-end) e Render (Back-end via Docker e <code>render.yaml</code>).</li>
+        </ul>
+
+        <h2>4. Arquitetura do Sistema</h2>
+        <p>O back-end do VoyageMind sofreu uma refatoração profunda, abandonando um modelo MVC tradicional para adotar os princípios da <strong>Clean Architecture</strong> (Arquitetura Limpa) de Robert C. Martin. A estrutura atual está dividida nas seguintes camadas:</p>
+        <ol>
+            <li><strong>Camada de Domínio (<code>src/domain</code>):</strong>
+                <ul>
+                    <li><strong>Entities:</strong> Representam os objetos centrais do negócio (<code>User</code>, <code>Passport</code>), isolados de qualquer framework.</li>
+                    <li><strong>Repositories Interfaces:</strong> Interfaces que ditam os contratos de persistência de dados (<code>IUserRepository</code>, <code>IPassportRepository</code>), permitindo inversão de dependência (DIP - <em>Dependency Inversion Principle</em>).</li>
+                </ul>
+            </li>
+            <li><strong>Camada de Aplicação (<code>src/application</code>):</strong>
+                <ul>
+                    <li><strong>Use Cases:</strong> Contêm as regras de negócio puras (ex: <code>AuthUseCases</code>, <code>PassportUseCases</code>). É nesta camada onde a lógica de validação complexa acontece. Nenhuma dependência externa, como o Express ou o Prisma, entra aqui.</li>
+                </ul>
+            </li>
+            <li><strong>Camada de Infraestrutura (<code>src/infrastructure</code>):</strong>
+                <ul>
+                    <li><strong>Web (Controllers &amp; Routes):</strong> Acopla os Use Cases aos objetos <code>Request</code> e <code>Response</code> do Express.</li>
+                    <li><strong>Database (Prisma Repositories):</strong> A implementação concreta das interfaces de repositório interagindo fisicamente com o banco SQLite através do Prisma.</li>
+                </ul>
+            </li>
+        </ol>
+
+        <h2>5. Principais Funcionalidades (Features)</h2>
+        <ul>
+            <li><strong>Assistente de Viagens IA:</strong> Um chat integrado capaz de gerar roteiros completos com base em orçamentos, destinos e dias disponíveis, incluindo um "Modo Cego" (Blind Mode) para destinos surpresa.</li>
+            <li><strong>CRUD de Passaportes:</strong> O usuário autenticado pode criar um card representativo de sua viagem, guardando memórias através de título, descrição, tags e data de desbloqueio.</li>
+            <li><strong>Atualização de Perfil:</strong> (Feature Adicional) Edição de nome do usuário logado.</li>
+            <li><strong>Dashboard de Estatísticas:</strong> (Feature Adicional) Um painel visual que compila a quantidade de passaportes criados pelo usuário e um mapa de frequência das tags (ex: Praia, Aventura, Mistério).</li>
+            <li><strong>Exclusão de Conta:</strong> (Feature Adicional) Possibilidade do usuário deletar sua conta permanentemente. O banco garante a exclusão em cascata (Cascade Delete) de todos os dados e passaportes vinculados.</li>
+        </ul>
+
+        <h2>6. Implementações Técnicas e Requisitos Acadêmicos Atendidos</h2>
+        
+        <h3>6.1. Testes Automatizados</h3>
+        <p>A aplicação garante a resiliência do sistema através do <strong>Jest</strong>. Foram construídos <em>Mocks</em> das interfaces de repositório para testar a camada de <code>UseCases</code> de forma unitária e sem necessidade de conexão com o banco de dados.</p>
+
+        <h3>6.2. Autenticação (JWT)</h3>
+        <p>O sistema bloqueia rotas sensíveis utilizando Middlewares do Express que verificam o <em>Token JWT</em> injetado no cabeçalho (Header) <code>Authorization: Bearer &lt;token&gt;</code>. O JWT armazena o ID e o email do usuário na sua <em>payload</em> encriptada pela variável de ambiente <code>JWT_SECRET</code>.</p>
+
+        <h3>6.3. Acessibilidade (A11y) no Front-end</h3>
+        <p>Para garantir a universalidade da plataforma, foram adotadas as seguintes boas práticas:</p>
+        <ul>
+            <li>Tags semânticas (<code>&lt;main&gt;</code>, <code>&lt;article&gt;</code>, <code>&lt;section&gt;</code>, <code>&lt;nav&gt;</code>).</li>
+            <li>Utilização de <code>aria-labels</code> em ícones, botões svg sem texto interno, e navegações de menu.</li>
+            <li>Utilização de <code>aria-hidden="true"</code> para elementos puramente estéticos, invisibilizando-os para leitores de tela e reduzindo o ruído na navegação assistida.</li>
+            <li>Suporte a navegação por teclado (Tab) mapeada adequadamente.</li>
+        </ul>
+
+        <h3>6.4. Configurações de Deploy (URL Pública)</h3>
+        <p>Para levar a aplicação a um ambiente de produção (<em>Cloud</em>), os seguintes artefatos foram construídos:</p>
+        <ul>
+            <li><strong>Dockerfile e <code>render.yaml</code>:</strong> Uma imagem containerizada do back-end em Node Alpine associada a um arquivo declarativo do Render.com. O arquivo yaml já especifica alocação de "Disk" (disco persistente) para não corromper o arquivo <code>.db</code> do SQLite em reinicializações efêmeras.</li>
+            <li><strong><code>vercel.json</code>:</strong> Resolve o problema comum de Single Page Applications (SPA) em servidores estáticos, redirecionando todas as buscas de rotas para o <code>index.html</code>.</li>
+        </ul>
+
+        <h3>6.5. Documentação da API com Swagger</h3>
+        <p>A rota <code>/api-docs</code> oferece uma interface gráfica alimentada pelo arquivo estático <code>swagger.json</code>. Ela mapeia detalhadamente os contratos de entrada (Payloads/Schemas) e de saída (Responses) dos principais microsserviços do módulo de Autenticação e Passaportes, explicitando também os esquemas de segurança requeridos (Bearer Authentication).</p>
+
+        <h2>7. Conclusão</h2>
+        <p>O projeto <strong>VoyageMind</strong> obteve êxito ao entregar não somente uma plataforma funcional com forte apelo visual, mas também por possuir um "motor" robusto. A adoção da Arquitetura Limpa proporcionou alta coesão e baixo acoplamento ao código, permitindo a fácil acoplagem de testes automatizados com Jest. Além disso, as adequações de acessibilidade e os preparos para deploy evidenciam a maturidade do processo de desenvolvimento, contemplando o ciclo de vida completo do software.</p>
+    </div>
+
+</body>
+</html>
