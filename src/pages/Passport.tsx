@@ -21,6 +21,8 @@ export function Passport() {
     const [localHistory, setLocalHistory] = useState<LocalVisit[]>([]);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'3D' | 'Map'>('Map');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
 
     // Add Past Trip Modal State
     const [showAddModal, setShowAddModal] = useState(false);
@@ -38,8 +40,10 @@ export function Passport() {
         async function load() {
             try {
                 setLoading(true);
-                const data = await getPassports();
-                setPassports(data.reverse());
+                const result = await getPassports(1, 10);
+                setPassports(result.data || []);
+                setTotalPages(result.totalPages || 1);
+                setCurrentPage(result.page || 1);
             } catch (err) {
                 // ignore
             } finally {
@@ -52,6 +56,19 @@ export function Passport() {
         }
         load();
     }, []);
+
+    async function handleLoadMore() {
+        if (currentPage >= totalPages) return;
+        try {
+            const next = currentPage + 1;
+            const result = await getPassports(next, 10);
+            setPassports(prev => [...prev, ...(result.data || [])]);
+            setCurrentPage(next);
+            setTotalPages(result.totalPages);
+        } catch (e) {
+            console.error(e);
+        }
+    }
 
     const initialCenter: [number, number] = localHistory.length > 0 
         ? [localHistory[0].lat, localHistory[0].lng]
@@ -290,6 +307,16 @@ export function Passport() {
                                 <p>Seu Passaporte está em branco.</p>
                                 <span>Você pode explorar novos locais ou adicionar antigas viagens no botão acima.</span>
                             </div>
+                        )}
+
+                        {!loading && currentPage < totalPages && (
+                            <button 
+                                className={styles.addTripBtn} 
+                                style={{ margin: '1rem auto', display: 'block' }}
+                                onClick={handleLoadMore}
+                            >
+                                Carregar mais
+                            </button>
                         )}
                     </div>
                 </div>

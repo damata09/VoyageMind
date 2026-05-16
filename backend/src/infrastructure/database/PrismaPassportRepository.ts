@@ -9,11 +9,23 @@ export class PrismaPassportRepository implements IPassportRepository {
     });
   }
 
-  async findAllByUserId(userId: string): Promise<Passport[]> {
-    return prisma.passport.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-    });
+  async findAllByUserId(userId: string, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      prisma.passport.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.passport.count({ where: { userId } }),
+    ]);
+    return {
+      data,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async create(data: Omit<Passport, "id" | "createdAt">): Promise<Passport> {

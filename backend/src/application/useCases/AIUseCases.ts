@@ -1,15 +1,16 @@
 import { IAIRepository, GenerateRouteInput } from "../../domain/repositories/IAIRepository";
 import { getMongoDb } from "../../infrastructure/database/MongoClient";
 import { logger } from "../../config/logger";
+import { ChatMessage, GeminiHistoryEntry } from "../dtos/ChatDTO";
 
 export class AIUseCases {
   constructor(private aiRepository: IAIRepository) {}
 
-  async getHistory(userId: string) {
+  async getHistory(userId: string): Promise<ChatMessage[]> {
     try {
       const db = await getMongoDb();
       const history = await db.collection("chat_history").findOne({ userId });
-      return history?.messages || [];
+      return (history?.messages as ChatMessage[]) || [];
     } catch (error) {
       logger.error("Erro ao buscar histórico:", error);
       return [];
@@ -29,9 +30,9 @@ export class AIUseCases {
   async chat(userId: string, message: string, blindMode?: boolean) {
     const history = await this.getHistory(userId);
     
-    let geminiHistory: any[] = [];
+    let geminiHistory: GeminiHistoryEntry[] = [];
     if (history.length > 0) {
-      geminiHistory = history.map((m: any) => ({
+      geminiHistory = history.map((m: ChatMessage) => ({
         role: m.role,
         parts: [{ text: m.content }]
       }));

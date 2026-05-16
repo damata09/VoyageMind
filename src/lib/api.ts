@@ -83,8 +83,15 @@ export interface PassportItem {
   createdAt: string;
 }
 
-export async function getPassports(): Promise<PassportItem[]> {
-  return apiFetch<PassportItem[]>("/passports", {}, true);
+export interface PaginatedPassports {
+  data: PassportItem[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export async function getPassports(page = 1, limit = 10): Promise<PaginatedPassports> {
+  return apiFetch<PaginatedPassports>(`/passports?page=${page}&limit=${limit}`, {}, true);
 }
 
 export async function createPassport(input: {

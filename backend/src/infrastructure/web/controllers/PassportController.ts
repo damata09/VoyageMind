@@ -8,8 +8,11 @@ export class PassportController {
 
   async getAll(req: AuthRequest, res: Response) {
     if (!req.user) throw new AppError("Usuário não autenticado", 401);
-    const passports = await this.passportUseCases.getUserPassports(req.user.id);
-    return res.json(passports);
+    const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
+    
+    const result = await this.passportUseCases.getUserPassports(req.user.id, page, limit);
+    return res.json(result);
   }
 
   async getOne(req: AuthRequest, res: Response) {

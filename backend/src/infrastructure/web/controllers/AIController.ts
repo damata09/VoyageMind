@@ -33,39 +33,11 @@ export class AIController {
   async suggest(req: Request, res: Response) {
     const { place, budget, days, blindMode } = req.body;
 
-    if (blindMode) {
-      setTimeout(() => {
-        res.json({
-          title: `Roteiro Secreto de ${days} Dias`,
-          overview: `A IA planejou uma aventura misteriosa para você com orçamento ${budget}. O destino é mantido em segredo! Prepare-se para ser surpreendido.`,
-          itinerary: [
-            `Dia 1: Chegada ao nosso destino secreto. Faça o check-in na acomodação e explore os restaurantes misteriosos próximos.`,
-            `Dia 2: Dia focado em vivenciar a atração principal desta região surpresa. Dica: Leve câmera!`,
-            `Dia 3: Despedida épica do local misterioso saboreando a cultura local.`
-          ],
-          tags: ["Cego", "Mistério", "Surpresa"]
-        });
-      }, 1500);
-      return;
-    }
+    const message = blindMode
+      ? `Crie um roteiro misterioso de ${days} dias com orçamento ${budget}. Não revele o destino, use enigmas e suspense.`
+      : `Crie um roteiro detalhado para ${place} com duração de ${days} dias e orçamento ${budget}. Use formatação markdown.`;
 
-    const suggestions = [
-      `Dia 1: Chegada em ${place} e exploração do centro histórico. Jantar em um restaurante conceituado.`,
-      `Dia 2: Visita aos principais pontos turísticos focando em experiências de ${budget.toLowerCase()} custo.`,
-      `Dia 3: Passeio relaxante e compras locais, aproveitando as últimas horas em ${place}.`
-    ];
-
-    if (days > 3) {
-      suggestions.push(`Dias extras: Imersão cultural nas áreas menos conhecidas de ${place}!`);
-    }
-
-    setTimeout(() => {
-      res.json({
-        title: `Roteiro Inteligente para ${place}`,
-        overview: `Com base em um orçamento ${budget} para ${days} dias, aqui está a sugestão ideal para você aproveitar o máximo de ${place}.`,
-        itinerary: suggestions,
-        tags: ["AI", "Otimizado", "Culture"]
-      });
-    }, 1500);
+    const text = await this.aiUseCases.chat("anonymous", message, blindMode ?? false);
+    res.json({ text });
   }
 }

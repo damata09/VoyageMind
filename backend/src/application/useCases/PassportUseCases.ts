@@ -5,8 +5,8 @@ import { CreatePassportDTO, UpdatePassportDTO } from "../dtos/PassportDTO";
 export class PassportUseCases {
   constructor(private passportRepository: IPassportRepository) {}
 
-  async getUserPassports(userId: string) {
-    return this.passportRepository.findAllByUserId(userId);
+  async getUserPassports(userId: string, page?: number, limit?: number) {
+    return this.passportRepository.findAllByUserId(userId, page, limit);
   }
 
   async getPassport(id: string, userId: string) {

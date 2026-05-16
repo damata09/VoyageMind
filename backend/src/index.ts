@@ -21,35 +21,12 @@ import { GeminiAIRepository } from "./infrastructure/ai/GeminiAIRepository";
 import { AIUseCases } from "./application/useCases/AIUseCases";
 import { AIController } from "./infrastructure/web/controllers/AIController";
 
-const app = express();
 const port = env.PORT;
 
 const allowedOrigins = [
   "https://voyagemind.vercel.app",
   "http://localhost:5173",
 ];
-
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new AppError("Origem não permitida pelo CORS", 403));
-    }
-  },
-  credentials: true,
-}));
-
-import compression from "compression";
-
-app.use(compression());
-app.use(express.json());
-app.use(mongoSanitize());
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
-
-app.get("/", (_req: Request, res: Response) => {
-  res.json({ message: "VoyageMind API ok" });
-});
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -98,33 +75,64 @@ aiRouter.post("/chat", authenticate, validate(chatSchema), (req, res, next) => {
   aiController.chat(req as any, res).catch(next);
 });
 
-app.use("/auth", authLimiter, authRoutes);
-app.use("/passports", passportRoutes);
-app.use("/ai", aiLimiter, aiRouter);
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
+import compression from "compression";
 
-// Middleware de tratamento de erros genérico
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  if (err instanceof AppError) {
-    return res.status(err.statusCode).json({ message: err.message, code: err.code });
-  }
-  
-  logger.error(err);
-  res.status(500).json({ message: "Erro interno do servidor", code: "GENERIC_ERROR" });
-});
+export function createApp() {
+  const app = express();
 
-app.listen(port, async () => {
-  logger.info(`Servidor rodando na porta ${port}`);
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new AppError("Origem não permitida pelo CORS", 403));
+      }
+    },
+    credentials: true,
+  }));
 
-  if (env.MONGODB_URI) {
-    try {
-      await getMongoDb();
-      logger.info('Conectado ao MongoDB para Logs de IA');
-    } catch (err) {
-      logger.error('Falha ao conectar no MongoDB:', err);
+  app.use(compression());
+  app.use(express.json());
+  app.use(mongoSanitize());
+  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+
+  app.get("/", (_req: Request, res: Response) => {
+    res.json({ message: "VoyageMind API ok" });
+  });
+
+  app.use("/auth", authLimiter, authRoutes);
+  app.use("/passports", passportRoutes);
+  app.use("/ai", aiLimiter, aiRouter);
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
+
+  // Middleware de tratamento de erros genérico
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+    if (err instanceof AppError) {
+      return res.status(err.statusCode).json({ message: err.message, code: err.code });
     }
-  } else {
-    logger.info('MONGODB_URI não fornecida. Logs de IA não serão persistidos.');
-  }
-});
+    
+    logger.error(err);
+    res.status(500).json({ message: "Erro interno do servidor", code: "GENERIC_ERROR" });
+  });
+
+  return app;
+}
+
+if (process.env.NODE_ENV !== "test") {
+  const app = createApp();
+  app.listen(port, async () => {
+    logger.info(`Servidor rodando na porta ${port}`);
+
+    if (env.MONGODB_URI) {
+      try {
+        await getMongoDb();
+        logger.info('Conectado ao MongoDB para Logs de IA');
+      } catch (err) {
+        logger.error('Falha ao conectar no MongoDB:', err);
+      }
+    } else {
+      logger.info('MONGODB_URI não fornecida. Logs de IA não serão persistidos.');
+    }
+  });
+}

@@ -1,10 +1,12 @@
+import { GeminiHistoryEntry } from "../application/dtos/ChatDTO";
+
 export interface GenerateRouteInput {
   destination?: string;
   budget?: string;
   days?: number;
   blindMode: boolean;
   message?: string;
-  history?: any[];
+  history?: GeminiHistoryEntry[];
 }
 
 export interface IAIRepository {
