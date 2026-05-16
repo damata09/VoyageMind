@@ -1,5 +1,6 @@
 import { IPassportRepository } from "../../domain/repositories/IPassportRepository";
 import { AppError } from "../../utils/AppError";
+import { CreatePassportDTO, UpdatePassportDTO } from "../dtos/PassportDTO";
 
 export class PassportUseCases {
   constructor(private passportRepository: IPassportRepository) {}
@@ -10,11 +11,11 @@ export class PassportUseCases {
 
   async getPassport(id: string, userId: string) {
     const passport = await this.passportRepository.findById(id, userId);
-    if (!passport) throw new AppError("Passport não encontrado", 404);
+    if (!passport) throw new AppError("Passport não encontrado", 404, "PASSPORT_NOT_FOUND");
     return passport;
   }
 
-  async createPassport(userId: string, data: any) {
+  async createPassport(userId: string, data: CreatePassportDTO) {
     return this.passportRepository.create({
       title: data.title,
       description: data.description,
@@ -24,9 +25,9 @@ export class PassportUseCases {
     });
   }
 
-  async updatePassport(id: string, userId: string, data: any) {
+  async updatePassport(id: string, userId: string, data: UpdatePassportDTO) {
     const existing = await this.passportRepository.findById(id, userId);
-    if (!existing) throw new AppError("Passport não encontrado", 404);
+    if (!existing) throw new AppError("Passport não encontrado", 404, "PASSPORT_NOT_FOUND");
 
     return this.passportRepository.update(existing.id, {
       title: data.title ?? existing.title,
@@ -40,7 +41,7 @@ export class PassportUseCases {
 
   async deletePassport(id: string, userId: string) {
     const existing = await this.passportRepository.findById(id, userId);
-    if (!existing) throw new AppError("Passport não encontrado", 404);
+    if (!existing) throw new AppError("Passport não encontrado", 404, "PASSPORT_NOT_FOUND");
 
     await this.passportRepository.delete(existing.id);
   }

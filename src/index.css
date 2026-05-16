@@ -177,7 +177,7 @@ h2 {
 .high-contrast .glass-panel,
 .high-contrast input,
 .high-contrast button {
-  border: 1px solid #ffffff !important;
+  border: 2px solid #ffff00 !important;
   background: #000000 !important;
 }
 

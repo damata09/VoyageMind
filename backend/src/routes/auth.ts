@@ -64,6 +64,17 @@ router.post("/login", validate(loginSchema), (req, res, next) => {
   authController.login(req, res).catch(next);
 });
 
+import { TokenBlacklist } from "../infrastructure/cache/TokenBlacklist";
+
+router.post("/logout", authenticate, (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader) {
+    const token = authHeader.substring("Bearer ".length);
+    TokenBlacklist.add(token);
+  }
+  res.status(200).json({ message: "Logout efetuado com sucesso" });
+});
+
 router.get("/me", authenticate, (req, res, next) => {
   authController.getMe(req, res).catch(next);
 });

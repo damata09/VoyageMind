@@ -1,9 +1,10 @@
 export class AppError extends Error {
-  public statusCode: number;
-
-  constructor(message: string, statusCode: number = 400) {
+  constructor(
+    public message: string,
+    public statusCode: number = 400,
+    public code: string = "GENERIC_ERROR"
+  ) {
     super(message);
-    this.statusCode = statusCode;
     Object.setPrototypeOf(this, AppError.prototype);
     Error.captureStackTrace(this, this.constructor);
   }

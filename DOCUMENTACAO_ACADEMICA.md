@@ -72,3 +72,22 @@ A rota `/api-docs` oferece uma interface gráfica alimentada pelo arquivo estát
 
 ## 7. Conclusão
 O projeto **VoyageMind** obteve êxito ao entregar não somente uma plataforma funcional com forte apelo visual, mas também por possuir um "motor" robusto. A adoção da Arquitetura Limpa proporcionou alta coesão e baixo acoplamento ao código, permitindo a fácil acoplagem de testes automatizados com Jest. Além disso, as adequações de acessibilidade e os preparos para deploy evidenciam a maturidade do processo de desenvolvimento, contemplando o ciclo de vida completo do software.
+
+## 8. Telas da Aplicação
+
+Abaixo estão os mockups e capturas de tela das principais funcionalidades e fluxos da aplicação:
+
+### Landing Page
+![Tela da Landing Page](./docs/images/landing-page.png)
+
+### Login / Cadastro
+![Tela de Login e Cadastro](./docs/images/login.png)
+
+### Explore (Chat com IA)
+![Tela do Assistente de IA](./docs/images/explore-chat.png)
+
+### Passaportes (CRUD)
+![Tela de Gerenciamento de Passaportes](./docs/images/passaportes.png)
+
+### Perfil do Usuário
+![Tela de Perfil do Usuário](./docs/images/perfil-usuario.png)
